@@ -510,13 +510,24 @@ async function maybeNotes(force){
     }
   } finally { if (R) R.notesBusy = false; }
 }
+function condenseNotes(md, max){
+  if (md.length <= max) return md;
+  const parts = md.split(/\n(?=#{1,4}\s)/), heads = parts.map(p => p.split('\n')[0]);
+  const per = Math.max(200, Math.floor((max - heads.join('\n').length) / Math.max(1, parts.length)));
+  return parts.map(p => {
+    const lines = p.split('\n'), out = [lines[0]]; let used = 0;
+    for (const l of lines.slice(1)){ if (used + l.length > per) break; out.push(l); used += l.length + 1; }
+    return out.join('\n');
+  }).join('\n').slice(0, max);
+}
 async function summarize(L){
   if (!L.notes || L.notes.length < 200) return;
   try {
-    const ask = n => chat(SYS_SUM, 'Przedmiot: ' + L.course + '\n\nNotatki:\n"""\n' + tidyNotes(L.notes).slice(0, n) + '\n"""');
+    // one request must fit the free plan's per-minute token limit: condense long notes evenly, all sections kept
+    const ask = n => chat(SYS_SUM, 'Przedmiot: ' + L.course + '\n\nNotatki' + (tidyNotes(L.notes).length > n ? ' (skrócone, każda sekcja zachowana)' : '') + ':\n"""\n' + condenseNotes(tidyNotes(L.notes), n) + '\n"""');
     let out;
-    try { out = await ask(60000); }
-    catch (e){ if (e.status === 413 || e.status === 429){ await sleep(Math.min(20000, Math.max((e.retryAfter || 0) * 1000, 3000))); out = await ask(9000); } else throw e; }
+    try { out = await ask(11000); }
+    catch (e){ if (e.status === 413){ out = await ask(7000); } else throw e; }
     const TOPIC_RE = /^[\s#>*_-]*TEMAT[*_]*\s*[:：–-]\s*[*_]*\s*(.+)$/mi;
     const m = out.match(TOPIC_RE);
     if (m && !L.topic) L.topic = m[1].replace(/[*_]+/g, '').trim().replace(/[.]+$/, '').slice(0, 90);
@@ -884,7 +895,7 @@ document.addEventListener('change', async ev => {
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.7';
+const APP_VERSION = '2026-11-27.8';
 async function checkUpdate(){
   if (R) return;
   try {
