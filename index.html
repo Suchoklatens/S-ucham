@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Słucham – notatki z wykładu</title>
+<style>
+:root{
+  --bg:#f6f5f2; --card:#ffffff; --ink:#16181d; --mute:#6b7280; --line:#e4e2dc;
+  --acc:#b42318; --acc-ink:#ffffff; --ok:#1a7f4b; --warn:#a15c07; --soft:#efede8;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0f1115; --card:#181b21; --ink:#eceef2; --mute:#9aa1ad; --line:#2a2e37; --soft:#20242c; --acc:#e5484d; --ok:#3ecf8e; --warn:#f0b35a; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+#app{max-width:680px;margin:0 auto;padding:12px 16px 120px}
+header.top{display:flex;align-items:center;justify-content:space-between;padding:8px 0 14px}
+header.top h1{font-size:22px;margin:0;letter-spacing:-.02em}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;background:var(--soft);font-weight:600}
+.btn.pri{background:var(--ink);color:var(--bg)}
+.btn.red{background:var(--acc);color:var(--acc-ink)}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px;border-radius:10px}
+.btn:disabled{opacity:.45}
+.icon{width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 14px}
+label{display:block;font-size:13px;color:var(--mute);margin:12px 0 4px}
+input,select,textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:44px}
+textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.mute{color:var(--mute);font-size:14px}
+.err{color:var(--acc);font-size:14px}
+.okc{color:var(--ok);font-size:14px}
+.big{width:100%;min-height:64px;font-size:19px;border-radius:18px;margin-top:14px}
+h2.sec{font-size:13px;text-transform:none;color:var(--mute);font-weight:600;margin:22px 2px 8px}
+.item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px}
+.item b{display:block;font-size:16px}
+.item span{color:var(--mute);font-size:13px}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--warn);margin-left:6px}
+.rechead{display:flex;align-items:center;gap:10px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--acc);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){.dot{animation:none}}
+.timer{font-variant-numeric:tabular-nums;font-size:34px;font-weight:700;letter-spacing:-.02em}
+.meter{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin:10px 0 6px}
+.meter i{display:block;height:100%;width:0;background:var(--ok);border-radius:99px;transition:width .1s linear}
+.tabs{display:flex;gap:6px;margin:14px 0 10px}
+.tabs button{flex:1;min-height:40px;border-radius:10px;background:var(--soft);font-weight:600;color:var(--mute)}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+.md h1{font-size:21px;margin:14px 0 6px;line-height:1.25}
+.md h2{font-size:18px;margin:18px 0 6px;line-height:1.3}
+.md h3{font-size:16px;margin:14px 0 4px}
+.md p{margin:6px 0}
+.md .li{position:relative;padding-left:18px;margin:3px 0}
+.md .li::before{content:"•";position:absolute;left:4px;color:var(--mute)}
+.md .li.l1{margin-left:18px}.md .li.l2{margin-left:36px}
+.md .ol{margin:3px 0}
+.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+.tr{font-size:14px;color:var(--mute);white-space:pre-wrap}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center}
+.bar .btn{flex:1;max-width:330px}
+#blackout{position:fixed;inset:0;background:#000;color:#3a3a3a;display:none;align-items:flex-end;justify-content:center;padding:0 0 60px;z-index:50;font-size:14px;text-align:center}
+#blackout.on{display:flex}
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:60}
+#toast.on{opacity:1}
+details summary{cursor:pointer;color:var(--mute);font-size:14px;padding:8px 0}
+a{color:inherit}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="blackout"><div>● nagrywam <span id="bo-t">00:00</span><br>dotknij, aby wrócić</div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+'use strict';
+/* ================= helpers ================= */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const pad = n => String(n).padStart(2, '0');
+const fmtDur = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60; return (h ? h+':'+pad(m) : pad(m)) + ':' + pad(x); };
+const fmtDate = t => new Date(t).toLocaleDateString('pl-PL', {weekday:'short', day:'numeric', month:'long', year:'numeric'});
+const fmtTime = t => new Date(t).toLocaleTimeString('pl-PL', {hour:'2-digit', minute:'2-digit'});
+let toastT; function toast(msg, ms = 2600){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), ms); }
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function dbg(){ try { return JSON.parse(localStorage.getItem('slucham_debug') || '{}'); } catch { return {}; } }
+
+/* ================= settings ================= */
+const DEF = {
+  sttBase:'https://api.groq.com/openai/v1', sttKey:'', sttModel:'whisper-large-v3',
+  llmSame:true, llmBase:'', llmKey:'', llmModel:'openai/gpt-oss-120b',
+  lang:'pl', notesEveryMin:3, audioMode:'auto', courses:{}, lastCourse:'', keyOk:false
+};
+let CFG = (() => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem('slucham_cfg') || '{}')); } catch { return Object.assign({}, DEF); } })();
+function saveCfg(){ try { localStorage.setItem('slucham_cfg', JSON.stringify(CFG)); } catch {} }
+
+/* ================= storage (IndexedDB, memory fallback) ================= */
+const DB = {
+  db:null, mem:new Map(),
+  open(){ return new Promise(res => { try { const rq = indexedDB.open('slucham', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('lectures', {keyPath:'id'});
+    rq.onsuccess = () => { this.db = rq.result; res(); }; rq.onerror = () => res(); } catch { res(); } }); },
+  all(){ if (!this.db) return Promise.resolve([...this.mem.values()]);
+    return new Promise(res => { try { const rq = this.db.transaction('lectures').objectStore('lectures').getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => res([]); } catch { res([]); } }); },
+  put(l){ this.mem.set(l.id, l); if (!this.db) return Promise.resolve();
+    return new Promise(res => { try { const tx = this.db.transaction('lectures', 'readwrite'); tx.objectStore('lectures').put(JSON.parse(JSON.stringify(l))); tx.oncomplete = () => res(); tx.onerror = () => res(); tx.onabort = () => res(); } catch { res(); } }); },
+  del(id){ this.mem.delete(id); if (!this.db) return Promise.resolve();
+    return new Promise(res => { try { const tx = this.db.transaction('lectures', 'readwrite'); tx.objectStore('lectures').delete(id); tx.oncomplete = () => res(); tx.onerror = () => res(); } catch { res(); } }); }
+};
+let LECT = [];
+const sortLect = () => LECT.sort((a, b) => b.startedAt - a.startedAt);
+const transcriptText = L => (L.transcript || []).map(s => s.text).join(' ');
+
+/* ================= API ================= */
+async function api(base, key, path, opts = {}){
+  let r;
+  try { r = await fetch(String(base).replace(/\/+$/, '') + path, {...opts, headers:{Authorization:'Bearer ' + key, ...(opts.headers || {})}}); }
+  catch { const e = new Error('Brak połączenia z API (sieć albo blokada w przeglądarce).'); e.net = true; throw e; }
+  if (!r.ok){
+    let msg = ''; try { const j = await r.json(); msg = (j.error && (j.error.message || j.error)) || JSON.stringify(j).slice(0, 200); } catch {}
+    const e = new Error('Błąd API ' + r.status + (msg ? ': ' + String(msg).slice(0, 220) : '')); e.status = r.status; e.retryAfter = parseFloat(r.headers.get('retry-after')) || 0; throw e;
+  }
+  return r.json();
+}
+const llmConf = () => CFG.llmSame ? {base:CFG.sttBase, key:CFG.sttKey, model:CFG.llmModel} : {base:CFG.llmBase, key:CFG.llmKey, model:CFG.llmModel};
+async function chat(system, user){
+  const c = llmConf();
+  const body = {model:c.model, messages:[{role:'system', content:system}, {role:'user', content:user}], temperature:0.2};
+  if (/gpt-oss/i.test(c.model)) body.reasoning_effort = 'low';
+  const call = () => api(c.base, c.key, '/chat/completions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+  let j;
+  try { j = await call(); }
+  catch (e){ if (e.status === 400){ delete body.temperature; delete body.reasoning_effort; j = await call(); } else throw e; }
+  let t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '';
+  if (Array.isArray(t)) t = t.map(p => p.text || '').join('');
+  return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+}
+
+/* ================= transcription ================= */
+const HALLU = [
+  /napisy (stworzone|wykonane|przygotowane) przez[^.!?\n]{0,60}[.!?]?/gi, /amara\.org/gi,
+  /dzi[eę]kuj[eę](my)? za (ogl[aą]danie|uwag[eę] i do zobaczenia)[.!]?/gi, /zapraszam(y)? do subskry\w+[^.!?\n]{0,40}[.!?]?/gi,
+  /do zobaczenia w (kolejnym|nast[eę]pnym) (odcinku|filmie)[.!]?/gi, /zdj[eę]cia i monta[zż][^.!?\n]{0,40}[.!?]?/gi
+];
+function cleanText(t, prompt){
+  t = String(t || '').replace(/\s+/g, ' ').trim();
+  for (const re of HALLU) t = t.replace(re, ' ');
+  t = t.replace(/((?:[\p{L}\d][\p{L}\d ,'-]{2,50}?[.!?,]?\s))\1{4,}/gu, '$1');
+  t = t.replace(/\s+/g, ' ').trim();
+  if (prompt && t && prompt.includes(t) && t.length > 20) return '';
+  if (/^[\s.,!?…-]*$/.test(t)) return '';
+  if (/^(dzi[eę]kuj[eę]\.?|tak\.?|no\.?|mhm\.?)$/i.test(t)) return '';
+  return t;
+}
+function encodeWav(int16, rate){
+  const buf = new ArrayBuffer(44 + int16.length * 2), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0, 'RIFF'); v.setUint32(4, 36 + int16.length * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, int16.length * 2, true);
+  new Int16Array(buf, 44).set(int16);
+  return new Blob([buf], {type:'audio/wav'});
+}
+function downTo16k(f32, inRate, st){
+  const ratio = inRate / 16000, out = [];
+  for (let i = 0; i < f32.length; i++){
+    st.acc += f32[i]; st.cnt++; st.pos += 1;
+    if (st.pos >= ratio){ const s = Math.max(-1, Math.min(1, st.acc / st.cnt)); out.push(s < 0 ? s * 0x8000 : s * 0x7FFF); st.acc = 0; st.cnt = 0; st.pos -= ratio; }
+  }
+  return Int16Array.from(out);
+}
+async function blobToWav(blob, ctx){
+  const own = !ctx; const AC = window.AudioContext || window.webkitAudioContext; ctx = ctx || new AC();
+  try {
+    const ab = await blob.arrayBuffer();
+    const audio = await new Promise((res, rej) => { const p = ctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); });
+    return encodeWav(downTo16k(audio.getChannelData(0), audio.sampleRate, {acc:0, cnt:0, pos:0}), 16000);
+  } finally { if (own) try { ctx.close(); } catch {} }
+}
+
+/* ================= recorder ================= */
+class Rec {
+  constructor(onSegment, onLevel){ this.onSegment = onSegment; this.onLevel = onLevel; this.n = 0; this.pcm = []; this.ds = {acc:0, cnt:0, pos:0}; this.hist = []; }
+  pickMime(){
+    const c = isIOS ? ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'] : ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    if (typeof MediaRecorder === 'undefined') return '';
+    return c.find(m => { try { return MediaRecorder.isTypeSupported(m); } catch { return false; } }) || '';
+  }
+  async start(){
+    this.stream = await navigator.mediaDevices.getUserMedia({audio:{channelCount:1, echoCancellation:false, noiseSuppression:false, autoGainControl:true}});
+    const AC = window.AudioContext || window.webkitAudioContext; this.ctx = new AC(); try { await this.ctx.resume(); } catch {}
+    this.src = this.ctx.createMediaStreamSource(this.stream);
+    this.an = this.ctx.createAnalyser(); this.an.fftSize = 2048; this.src.connect(this.an); this.buf = new Float32Array(this.an.fftSize);
+    this.mime = this.pickMime();
+    const want = CFG.audioMode === 'auto' ? (CFG.autoWav ? 'wav' : 'mr') : CFG.audioMode;
+    this.mode = (want === 'mr' && this.mime) ? 'mr' : 'wav';
+    const d = dbg(); this.minSeg = (d.minSeg || 22) * 1000; this.maxSeg = (d.maxSeg || 38) * 1000;
+    this.segT0 = Date.now(); this.segPeak = 0; this.quietMs = 0;
+    if (this.mode === 'mr') this.newMR(); else this.startPcm();
+    this.timer = setInterval(() => this.tick(), 100);
+  }
+  newMR(){
+    const mr = new MediaRecorder(this.stream, {mimeType:this.mime, audioBitsPerSecond:32000}); const chunks = [];
+    mr.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+    mr.start(); this.mr = mr; this.chunks = chunks;
+  }
+  startPcm(){
+    if (this.sp) return;
+    this.sp = this.ctx.createScriptProcessor(4096, 1, 1); this.src.connect(this.sp);
+    const g = this.ctx.createGain(); g.gain.value = 0; this.sp.connect(g); g.connect(this.ctx.destination);
+    this.sp.onaudioprocess = e => { if (this.mode !== 'wav' || this.stopped) return; this.pcm.push(downTo16k(e.inputBuffer.getChannelData(0), this.ctx.sampleRate, this.ds)); };
+  }
+  tick(){
+    if (this.stopped) return;
+    let rms = 0;
+    try { this.an.getFloatTimeDomainData(this.buf); let s = 0; for (let i = 0; i < this.buf.length; i++) s += this.buf[i] * this.buf[i]; rms = Math.sqrt(s / this.buf.length); } catch {}
+    this.hist.push(rms); if (this.hist.length > 120) this.hist.shift();
+    if (rms > this.segPeak) this.segPeak = rms;
+    const sorted = [...this.hist].sort((a, b) => a - b), floor = sorted[Math.floor(sorted.length * 0.1)] || 0, top = sorted[Math.floor(sorted.length * 0.9)] || 0;
+    const quiet = rms < floor + 0.25 * (top - floor) + 1e-5;
+    this.quietMs = quiet ? this.quietMs + 100 : 0;
+    this.onLevel && this.onLevel(Math.min(1, Math.sqrt(rms) * 2.2));
+    const el = Date.now() - this.segT0;
+    if (el >= this.maxSeg || (el >= this.minSeg && this.quietMs >= 300)) this.rotate(false);
+  }
+  rotate(final){
+    const t1 = Date.now(), seg = {idx:this.n++, t0:this.segT0, t1, peak:this.segPeak};
+    this.segT0 = t1; this.segPeak = 0; this.quietMs = 0;
+    return new Promise(resolve => {
+      if (this.mode === 'mr'){
+        const old = this.mr, chunks = this.chunks, mime = this.mime; let late = false;
+        if (!final && !this.toWav){ try { this.newMR(); } catch { late = true; } }
+        old.onstop = () => {
+          if (late && !this.stopped){ try { this.newMR(); } catch {} }
+          const blob = new Blob(chunks, {type:mime.split(';')[0]});
+          this.onSegment({...seg, blob, ext: mime.includes('mp4') ? 'mp4' : mime.includes('ogg') ? 'ogg' : 'webm'}); resolve();
+        };
+        try { old.stop(); } catch { resolve(); }
+        if (this.toWav && !final){ this.mode = 'wav'; this.toWav = false; this.startPcm(); }
+      } else {
+        const parts = this.pcm; this.pcm = []; let len = 0; for (const p of parts) len += p.length;
+        const all = new Int16Array(len); let o = 0; for (const p of parts){ all.set(p, o); o += p.length; }
+        if (len > 1600) this.onSegment({...seg, blob:encodeWav(all, 16000), ext:'wav'}); resolve();
+      }
+    });
+  }
+  switchToWav(){ if (this.mode === 'wav' || this.stopped) return; this.toWav = true; this.rotate(false); }
+  async resumeIfNeeded(){
+    if (this.stopped) return true;
+    try { if (this.ctx.state !== 'running') await this.ctx.resume(); } catch {}
+    const tr = this.stream.getAudioTracks()[0];
+    if (!tr || tr.readyState === 'ended'){ return false; }
+    if (this.mode === 'mr' && this.mr && this.mr.state === 'paused'){ try { this.mr.resume(); } catch {} }
+    return true;
+  }
+  async stop(){
+    clearInterval(this.timer); await this.rotate(true); this.stopped = true;
+    try { this.stream.getTracks().forEach(t => t.stop()); } catch {}
+    try { if (this.sp) this.sp.disconnect(); this.ctx.close(); } catch {}
+  }
+}
+
+/* ================= session ================= */
+let R = null; // active recording session
+let wake = null;
+async function wakeOn(){ try { if ('wakeLock' in navigator){ wake = await navigator.wakeLock.request('screen'); } } catch {} }
+function wakeOff(){ try { wake && wake.release(); } catch {} wake = null; }
+
+const SYS_NOTES = `Jesteś asystentem, który robi notatki z wykładu akademickiego na żywo. Dostajesz kolejny fragment automatycznej transkrypcji. Transkrypcja może zawierać błędy rozpoznawania mowy, urwane zdania oraz głosy z sali.
+Zasady:
+- Pisz po polsku, w Markdown: nagłówek "## " przy każdym nowym temacie, pod nim zwięzłe punkty "- ", podpunkty z wcięciem dwóch spacji.
+- Zapisuj to, co merytoryczne: tezy, definicje (pojęcie pogrubione **tak**), podziały i wyliczenia, przykłady, przepisy i daty, nazwiska, wskazówki co do zaliczenia i literatury.
+- Pomijaj wszystko, co nie jest treścią wykładu: szepty i rozmowy z sali, kaszel, żarty bez znaczenia, sprawy techniczne, powtórzenia.
+- Poprawiaj oczywiste błędy transkrypcji na podstawie kontekstu, ale niczego nie dopisuj od siebie. Niepewną nazwę lub termin oznacz "(?)".
+- Nie powtarzaj tego, co już jest w dotychczasowych notatkach. Jeśli fragment kontynuuje bieżący temat, nie dawaj nowego nagłówka, tylko kolejne punkty.
+- Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej, zwróć dokładnie: BRAK`;
+const SYS_SUM = `Dostajesz notatki z jednego wykładu. Odpowiedz po polsku dokładnie w tym układzie:
+TEMAT: <temat wykładu w maksymalnie 8 słowach>
+## Najważniejsze
+- 5 do 8 punktów z najważniejszymi tezami wykładu
+## Do zapamiętania
+- definicje, terminy, zapowiedzi kolokwiów i zalecana literatura, jeśli padły; jeśli nic takiego nie padło, pomiń całą tę sekcję
+Niczego nie dopisuj spoza notatek.`;
+
+async function transcribeSeg(seg){
+  const L = R.lecture, hints = ((CFG.courses[L.course] || {}).hints || '').trim();
+  const prompt = [hints && ('Wykład: ' + L.course + '. Terminy: ' + hints + '.'), transcriptText(L).slice(-160)].filter(Boolean).join(' ').slice(-600);
+  const send = (blob, ext) => {
+    const fd = new FormData(); fd.append('file', new File([blob], 'fragment.' + ext, {type:blob.type || 'application/octet-stream'}));
+    fd.append('model', CFG.sttModel); if (CFG.lang) fd.append('language', CFG.lang);
+    const whisper = /whisper/i.test(CFG.sttModel); fd.append('response_format', whisper ? 'verbose_json' : 'json'); if (whisper) fd.append('temperature', '0');
+    if (prompt) fd.append('prompt', prompt);
+    return api(CFG.sttBase, CFG.sttKey, '/audio/transcriptions', {method:'POST', body:fd});
+  };
+  if (R.forceWav && seg.ext !== 'wav'){ try { seg.blob = await blobToWav(seg.blob, R.rec && !R.rec.stopped ? R.rec.ctx : null); seg.ext = 'wav'; } catch {} }
+  let j;
+  try { j = await send(seg.blob, seg.ext); }
+  catch (e){
+    if (e.status === 400 && seg.ext !== 'wav'){
+      const wav = await blobToWav(seg.blob, R.rec && !R.rec.stopped ? R.rec.ctx : null);
+      j = await send(wav, 'wav');
+      R.forceWav = true; CFG.autoWav = true; saveCfg(); if (R.rec) R.rec.switchToWav();
+    } else throw e;
+  }
+  let text = '';
+  if (Array.isArray(j.segments) && j.segments.length) text = j.segments.filter(s => !(s.no_speech_prob > 0.7 && s.avg_logprob < -1)).map(s => s.text).join(' ');
+  else text = j.text || '';
+  return cleanText(text, prompt);
+}
+async function pump(){
+  if (!R || R.pumping) return; R.pumping = true;
+  while (R && R.queue.length && !R.dropQueue){
+    const seg = R.queue[0];
+    if (seg.peak < 0.0006 && !dbg().noSkip){ R.queue.shift(); R.skipped++; continue; }
+    try {
+      const text = await transcribeSeg(seg);
+      R.queue.shift(); R.done++; R.netErr = '';
+      if (text){ R.lecture.transcript.push({t:Math.round((seg.t0 - R.lecture.startedAt) / 1000), text}); DB.put(R.lecture); uiTranscript(); }
+      uiStatus(); maybeNotes(false);
+    } catch (e){
+      seg.tries = (seg.tries || 0) + 1; R.netErr = e.message; uiStatus();
+      if ((e.status === 400 || e.status === 413 || e.status === 422) && seg.tries >= 2){ R.queue.shift(); R.failed++; continue; }
+      await sleep(Math.min(30000, Math.max(e.retryAfter * 1000, 1500 * seg.tries)));
+    }
+  }
+  if (R){ R.pumping = false; if (R.dropQueue){ R.failed += R.queue.length; R.queue = []; } }
+}
+async function maybeNotes(force){
+  if (!R || R.notesBusy) return; if (!force && R.notesHold && Date.now() < R.notesHold) return; const L = R.lecture; R.notesBusy = true;
+  try {
+    for (;;){
+      const pending = transcriptText(L).slice(L.notedChars || 0);
+      const d = dbg(), capChars = d.notesChars || 4200, everyMs = (d.notesEverySec || CFG.notesEveryMin * 60) * 1000;
+      const due = pending.length >= capChars || (Date.now() - R.lastNotesAt >= everyMs && pending.length >= (d.notesMin || 500));
+      if (!(force ? pending.trim().length >= 40 : due)) break;
+      let take = pending;
+      if (!force){ const cut = Math.max(pending.lastIndexOf('. '), pending.lastIndexOf('? '), pending.lastIndexOf('! ')); if (cut > pending.length * 0.5) take = pending.slice(0, cut + 1); }
+      const user = 'Przedmiot: ' + L.course + '\n\nDotychczasowe notatki (końcówka, tylko dla ciągłości):\n"""\n' + (L.notes ? L.notes.slice(-1500) : '(jeszcze brak)') + '\n"""\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
+      let add;
+      try { add = await chat(SYS_NOTES, user); R.notesErr = ''; }
+      catch (e){ R.notesErr = e.message; uiStatus(); R.notesHold = Date.now() + Math.max((e.retryAfter || 0) * 1000, 15000); if (force && (R.notesTries = (R.notesTries || 0) + 1) < 4){ await sleep(Math.max((e.retryAfter || 0) * 1000, 2500)); continue; } break; }
+      L.notedChars = (L.notedChars || 0) + take.length; R.lastNotesAt = Date.now();
+      if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
+      await DB.put(L); uiNotes(); uiStatus();
+    }
+  } finally { if (R) R.notesBusy = false; }
+}
+async function summarize(L){
+  if (!L.notes || L.notes.length < 200) return;
+  try {
+    const ask = n => chat(SYS_SUM, 'Przedmiot: ' + L.course + '\n\nNotatki:\n"""\n' + L.notes.slice(0, n) + '\n"""');
+    let out;
+    try { out = await ask(60000); }
+    catch (e){ if (e.status === 413 || e.status === 429){ await sleep(Math.min(20000, Math.max((e.retryAfter || 0) * 1000, 3000))); out = await ask(9000); } else throw e; }
+    const m = out.match(/^\s*TEMAT:\s*(.+)$/mi); if (m && !L.topic) L.topic = m[1].trim().replace(/[.*]+$/, '').slice(0, 90);
+    L.summary = out.replace(/^\s*TEMAT:.*$/mi, '').trim();
+  } catch (e){ L.summaryErr = e.message; }
+}
+async function startRecording(course, hints){
+  if (R) return;
+  course = (course || '').trim() || 'Wykład';
+  CFG.courses[course] = Object.assign(CFG.courses[course] || {}, {hints:(hints || '').trim()}); CFG.lastCourse = course; saveCfg();
+  const L = {id:'L' + Date.now().toString(36), course, topic:'', startedAt:Date.now(), endedAt:0, durationSec:0, transcript:[], notes:'', summary:'', notedChars:0, status:'recording'};
+  R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:Date.now(), tab:'notes', forceWav:false};
+  R.rec = new Rec(seg => { if (seg.blob && seg.blob.size > 800){ R.queue.push(seg); pump(); } uiStatus(); }, lv => { const m = $('#lvl'); if (m) m.style.width = Math.round(lv * 100) + '%'; });
+  try { await R.rec.start(); }
+  catch (e){ R = null; toast(e && e.name === 'NotAllowedError' ? 'Brak zgody na mikrofon. Zezwól w ustawieniach Safari.' : 'Nie udało się uruchomić mikrofonu: ' + (e && e.message || e), 5000); return; }
+  LECT.unshift(L); await DB.put(L); wakeOn();
+  try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
+  R.clock = setInterval(() => { const s = (Date.now() - L.startedAt) / 1000; const t = $('#timer'); if (t) t.textContent = fmtDur(s); $('#bo-t').textContent = fmtDur(s); if (!R.notesBusy) maybeNotes(false); }, 1000);
+  go('rec');
+}
+async function stopRecording(){
+  if (!R || R.finishing) return; R.finishing = true; const L = R.lecture;
+  clearInterval(R.clock); $('#blackout').classList.remove('on');
+  L.endedAt = Date.now(); L.durationSec = Math.round((L.endedAt - L.startedAt) / 1000);
+  uiFinish('Kończę nagranie…');
+  try { await R.rec.stop(); } catch {}
+  wakeOff(); pump();
+  const t0 = Date.now();
+  while (R.queue.length || R.pumping){ uiFinish('Rozpoznaję ostatnie fragmenty (' + R.queue.length + ')…' + (R.netErr ? '\n' + R.netErr : ''), Date.now() - t0 > 12000); await sleep(400); }
+  uiFinish('Dopisuję notatki…');
+  while (R.notesBusy) await sleep(300);
+  await maybeNotes(true);
+  uiFinish('Robię podsumowanie…');
+  await summarize(L);
+  const left = transcriptText(L).slice(L.notedChars || 0).trim().length;
+  L.status = left >= 40 ? 'interrupted' : 'done'; await DB.put(L);
+  const id = L.id; R = null; go('lecture', id);
+  toast(left >= 40 ? 'Zapisane, ale notatki są niepełne' : 'Notatki zapisane w archiwum');
+}
+document.addEventListener('visibilitychange', async () => {
+  if (!R || R.finishing) return;
+  if (document.visibilityState === 'visible'){
+    wakeOn(); const ok = await R.rec.resumeIfNeeded();
+    if (!ok){ R.lecture.transcript.push({t:Math.round((Date.now() - R.lecture.startedAt) / 1000), text:'[przerwa w nagraniu – telefon przerwał dostęp do mikrofonu]'}); toast('Mikrofon został przerwany. Kończę i zapisuję to, co jest.', 5000); stopRecording(); }
+  }
+});
+window.addEventListener('beforeunload', e => { if (R){ e.preventDefault(); e.returnValue = ''; } });
+
+/* ================= markdown ================= */
+function mdBlocks(md){
+  const out = [];
+  for (const raw of String(md || '').split(/\r?\n/)){
+    const line = raw.replace(/\s+$/, ''); let m;
+    if (!line.trim()) continue;
+    if ((m = line.match(/^\s{0,3}(#{1,4})\s+(.*)$/))) out.push({t:'h', lvl:Math.min(m[1].length, 3), text:m[2].replace(/\s*#+\s*$/, '')});
+    else if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) out.push({t:'hr'});
+    else if ((m = line.match(/^(\s*)[-*•–]\s+(.*)$/))) out.push({t:'li', lvl:Math.min(Math.floor(m[1].replace(/\t/g, '  ').length / 2), 2), text:m[2]});
+    else if ((m = line.match(/^(\s*)(\d+)[.)]\s+(.*)$/))) out.push({t:'ol', lvl:Math.min(Math.floor(m[1].length / 2), 2), n:m[2], text:m[3]});
+    else out.push({t:'p', text:line.trim()});
+  }
+  return out;
+}
+function inlineRuns(text){
+  const runs = [], re = /\*\*([^*]+)\*\*|__([^_]+)__|\*([^*\n]+)\*|`([^`]+)`/g; let last = 0, m;
+  while ((m = re.exec(text))){
+    if (m.index > last) runs.push({text:text.slice(last, m.index)});
+    if (m[1] || m[2]) runs.push({text:m[1] || m[2], b:true}); else if (m[3]) runs.push({text:m[3], i:true}); else runs.push({text:m[4]});
+    last = re.lastIndex;
+  }
+  if (last < text.length) runs.push({text:text.slice(last)});
+  return runs;
+}
+const runsHtml = t => inlineRuns(t).map(r => r.b ? '<b>' + esc(r.text) + '</b>' : r.i ? '<i>' + esc(r.text) + '</i>' : esc(r.text)).join('');
+function mdHtml(md){
+  return mdBlocks(md).map(b => b.t === 'h' ? '<h' + b.lvl + '>' + runsHtml(b.text) + '</h' + b.lvl + '>' : b.t === 'hr' ? '<hr>' : b.t === 'li' ? '<div class="li l' + b.lvl + '">' + runsHtml(b.text) + '</div>' : b.t === 'ol' ? '<div class="ol" style="margin-left:' + (b.lvl * 18) + 'px">' + esc(b.n) + '. ' + runsHtml(b.text) + '</div>' : '<p>' + runsHtml(b.text) + '</p>').join('');
+}
+function lectureMd(L){
+  const title = L.course + (L.topic ? ' — ' + L.topic : '');
+  const meta = fmtDate(L.startedAt) + ', ' + fmtTime(L.startedAt) + (L.durationSec ? ' · ' + fmtDur(L.durationSec) : '');
+  return '# ' + title + '\n\n*' + meta + '*\n\n' + (L.summary ? L.summary + '\n\n---\n\n' : '') + (L.notes || '(brak notatek)');
+}
+function mdPlain(md){ return mdBlocks(md).map(b => b.t === 'h' ? '\n' + b.text.toUpperCase() : b.t === 'hr' ? '' : b.t === 'li' ? '  '.repeat(b.lvl) + '• ' + b.text : b.t === 'ol' ? b.n + '. ' + b.text : b.text).join('\n').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*\n]+)\*/g, '$1').trim(); }
+
+/* ================= .docx (minimal, no dependencies) ================= */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function zipStore(files){
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  for (const f of files){
+    const name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(12, 0x21, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(14, 0x21, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true); ch.setUint32(42, off, true);
+    central.push(new Uint8Array(ch.buffer), name); off += 30 + name.length + data.length;
+  }
+  const csize = central.reduce((a, b) => a + b.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+function buildDocx(md){
+  const x = s => String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const run = r => '<w:r>' + (r.b || r.i ? '<w:rPr>' + (r.b ? '<w:b/>' : '') + (r.i ? '<w:i/>' : '') + '</w:rPr>' : '') + '<w:t xml:space="preserve">' + x(r.text) + '</w:t></w:r>';
+  const runs = t => inlineRuns(t).map(run).join('');
+  const body = mdBlocks(md).map(b => {
+    if (b.t === 'h') return '<w:p><w:pPr><w:pStyle w:val="Heading' + b.lvl + '"/></w:pPr>' + runs(b.text) + '</w:p>';
+    if (b.t === 'hr') return '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="BBBBBB"/></w:pBdr></w:pPr></w:p>';
+    if (b.t === 'li') return '<w:p><w:pPr><w:numPr><w:ilvl w:val="' + b.lvl + '"/><w:numId w:val="1"/></w:numPr><w:spacing w:after="40"/></w:pPr>' + runs(b.text) + '</w:p>';
+    if (b.t === 'ol') return '<w:p><w:pPr><w:ind w:left="' + (360 + b.lvl * 360) + '" w:hanging="360"/><w:spacing w:after="40"/></w:pPr>' + run({text:b.n + '. '}) + runs(b.text) + '</w:p>';
+    return '<w:p>' + runs(b.text) + '</w:p>';
+  }).join('');
+  const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"', head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+  const lvl = (i, ch) => '<w:lvl w:ilvl="' + i + '"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="' + ch + '"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="' + (360 + i * 360) + '" w:hanging="360"/></w:pPr></w:lvl>';
+  const hs = (n, sz, before) => '<w:style w:type="paragraph" w:styleId="Heading' + n + '"><w:name w:val="heading ' + n + '"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before="' + before + '" w:after="80"/><w:outlineLvl w:val="' + (n - 1) + '"/></w:pPr><w:rPr><w:b/><w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/></w:rPr></w:style>';
+  return zipStore([
+    {name:'[Content_Types].xml', data:head + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>'},
+    {name:'_rels/.rels', data:head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'},
+    {name:'word/_rels/document.xml.rels', data:head + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/></Relationships>'},
+    {name:'word/styles.xml', data:head + '<w:styles ' + W + '><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/><w:lang w:val="pl-PL"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>' + hs(1, 36, 0) + hs(2, 28, 280) + hs(3, 24, 200) + '</w:styles>'},
+    {name:'word/numbering.xml', data:head + '<w:numbering ' + W + '><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>' + lvl(0, '•') + lvl(1, '–') + lvl(2, '·') + '</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>'},
+    {name:'word/document.xml', data:head + '<w:document ' + W + '><w:body>' + body + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>'}
+  ]);
+}
+const fileBase = L => (L.course + (L.topic ? ' - ' + L.topic : '') + ' ' + new Date(L.startedAt).toISOString().slice(0, 10)).replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 90);
+function saveBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
+async function shareLecture(L){
+  const file = new File([buildDocx(lectureMd(L))], fileBase(L) + '.docx', {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  try {
+    if (navigator.canShare && navigator.canShare({files:[file]})) return await navigator.share({files:[file], title:fileBase(L)});
+    if (navigator.share) return await navigator.share({title:fileBase(L), text:mdPlain(lectureMd(L))});
+    saveBlob(file, file.name);
+  } catch (e){ if (e && e.name !== 'AbortError') saveBlob(file, file.name); }
+}
+
+/* ================= UI ================= */
+let VIEW = {name:'home', arg:null};
+function go(name, arg){ VIEW = {name, arg}; render(); window.scrollTo(0, 0); }
+function render(){
+  const a = $('#app');
+  if (VIEW.name === 'rec' && R) a.innerHTML = vRec();
+  else if (VIEW.name === 'lecture') a.innerHTML = vLecture(LECT.find(l => l.id === VIEW.arg));
+  else if (VIEW.name === 'settings') a.innerHTML = vSettings();
+  else a.innerHTML = vHome();
+  if (VIEW.name === 'rec' && R){ uiNotes(); uiTranscript(); uiStatus(); }
+}
+const topBar = (title, right) => '<header class="top"><h1>' + esc(title) + '</h1>' + (right || '') + '</header>';
+function vHome(){
+  const courses = Object.keys(CFG.courses), cur = CFG.lastCourse || '';
+  const ready = CFG.sttKey && (CFG.llmSame || CFG.llmKey);
+  return topBar('Słucham', '<button class="icon" data-act="settings" aria-label="Ustawienia">⚙︎</button>') +
+    (R ? '<div class="card"><b>Nagrywanie trwa</b><div class="row" style="margin-top:10px"><button class="btn red" data-act="back-rec">Wróć do nagrania</button></div></div>' :
+    !ready ? '<div class="card"><b>Najpierw klucz API</b><p class="mute">Aplikacja potrzebuje klucza do usługi, która zamienia mowę na tekst i pisze notatki. Wpisujesz go raz, zostaje tylko w tym telefonie.</p><button class="btn pri" data-act="settings">Otwórz ustawienia</button></div>' :
+    '<div class="card"><label for="course">Przedmiot</label><input id="course" list="courses" placeholder="np. Prawo administracyjne" value="' + esc(cur) + '" autocomplete="off"><datalist id="courses">' + courses.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>' +
+    '<details><summary>Podpowiedzi dla transkrypcji (nazwiska, trudne terminy)</summary><textarea id="hints" placeholder="np. Zimmermann, k.p.a., decyzja administracyjna, WSA">' + esc((CFG.courses[cur] || {}).hints || '') + '</textarea></details>' +
+    '<button class="btn red big" data-act="start">● Zacznij słuchać</button>' +
+    '<p class="mute" style="margin:12px 0 0">Połóż telefon ekranem do góry, jak najbliżej wykładowcy. Ekran musi zostać włączony i ta strona musi być na wierzchu. Możesz go przyciemnić przyciskiem „Wygaś ekran”.</p></div>') +
+    '<h2 class="sec">Archiwum' + (LECT.length ? ' (' + LECT.length + ')' : '') + '</h2>' +
+    (LECT.length ? LECT.map(l => '<button class="item" data-act="open" data-id="' + esc(l.id) + '"><b>' + esc(l.course) + (l.topic ? ' — ' + esc(l.topic) : '') + (l.status !== 'done' && !(R && R.lecture.id === l.id) ? '<span class="tag">niedokończone</span>' : '') + '</b><span>' + esc(fmtDate(l.startedAt)) + ', ' + esc(fmtTime(l.startedAt)) + (l.durationSec ? ' · ' + fmtDur(l.durationSec) : '') + '</span></button>').join('') : '<p class="mute">Tu pojawią się notatki z każdego wykładu.</p>');
+}
+function vRec(){
+  const L = R.lecture;
+  return '<div class="card"><div class="rechead"><span class="dot"></span><b>' + esc(L.course) + '</b></div><div class="timer" id="timer">' + fmtDur((Date.now() - L.startedAt) / 1000) + '</div><div class="meter"><i id="lvl"></i></div><div class="mute" id="status"></div></div>' +
+    '<div class="tabs"><button data-act="tab" data-tab="notes" class="' + (R.tab === 'notes' ? 'on' : '') + '">Notatki</button><button data-act="tab" data-tab="tr" class="' + (R.tab === 'tr' ? 'on' : '') + '">Transkrypcja</button></div>' +
+    '<div class="card"><div id="notes" class="md" ' + (R.tab === 'notes' ? '' : 'hidden') + '></div><div id="tr" class="tr" ' + (R.tab === 'tr' ? '' : 'hidden') + '></div></div>' +
+    '<div class="bar" id="bar"><button class="btn ghost" data-act="blackout">Wygaś ekran</button><button class="btn red" data-act="stop">■ Zakończ</button></div>';
+}
+function uiNotes(){ const n = $('#notes'); if (!n || !R) return; n.innerHTML = R.lecture.notes ? mdHtml(R.lecture.notes) : '<p class="mute">Pierwsze notatki pojawią się po około ' + CFG.notesEveryMin + ' min.</p>'; }
+function uiTranscript(){ const t = $('#tr'); if (!t || !R) return; t.textContent = transcriptText(R.lecture) || 'Czekam na pierwszy fragment…'; }
+function uiStatus(){
+  const s = $('#status'); if (!s || !R) return;
+  const bits = ['Rozpoznane fragmenty: ' + R.done]; if (R.queue.length) bits.push('w kolejce: ' + R.queue.length); if (R.failed) bits.push('pominięte przez błąd: ' + R.failed);
+  s.innerHTML = esc(bits.join(' · ')) + (R.netErr ? '<div class="err">' + esc(R.netErr) + ' Ponawiam.</div>' : '') + (R.notesErr ? '<div class="err">Notatki: ' + esc(R.notesErr) + '</div>' : '');
+}
+function uiFinish(msg, allowSkip){
+  const b = $('#bar'); if (b) b.innerHTML = '<div style="flex:1;text-align:center"><div class="mute" style="white-space:pre-line">' + esc(msg) + '</div>' + (allowSkip ? '<button class="btn sm ghost" data-act="skipq" style="margin-top:6px">Zakończ bez czekania</button>' : '') + '</div>';
+}
+function vLecture(L){
+  if (!L) return topBar('Słucham') + '<p class="mute">Nie ma takiego wykładu.</p><button class="btn" data-act="home">Wróć</button>';
+  const tr = transcriptText(L), unfinished = L.status !== 'done';
+  return '<div class="row" style="padding:8px 0 10px"><button class="btn sm ghost" data-act="home">‹ Archiwum</button></div>' +
+    (unfinished ? '<div class="card"><b>Notatki są niepełne</b><p class="mute">Transkrypcja jest zapisana w całości. Notatki można z niej dokończyć.</p><button class="btn pri" data-act="finish" data-id="' + esc(L.id) + '">Dokończ notatki</button></div>' : '') +
+    '<div class="row" style="margin-bottom:12px"><button class="btn pri sm" data-act="share" data-id="' + esc(L.id) + '">Udostępnij</button><button class="btn sm" data-act="docx" data-id="' + esc(L.id) + '">Pobierz Word</button><button class="btn sm" data-act="copy" data-id="' + esc(L.id) + '">Kopiuj</button></div>' +
+    '<div class="card md">' + mdHtml(lectureMd(L)) + (L.summaryErr && !L.summary ? '<p class="err">Podsumowanie się nie udało: ' + esc(L.summaryErr) + '</p>' : '') + '</div>' +
+    '<details class="card"><summary>Pełna transkrypcja (' + Math.round(tr.length / 1000) + ' tys. znaków)</summary><div class="tr">' + esc(tr) + '</div></details>' +
+    '<div class="row"><button class="btn sm ghost" data-act="redo" data-id="' + esc(L.id) + '">Napisz notatki od nowa</button><button class="btn sm ghost" data-act="del" data-id="' + esc(L.id) + '">Usuń</button></div><div id="msg" class="mute" style="margin-top:10px"></div>';
+}
+function vSettings(){
+  return '<div class="row" style="padding:8px 0 10px"><button class="btn sm ghost" data-act="home">‹ Wróć</button></div>' + topBar('Ustawienia') +
+    '<div class="card"><b>Klucz API</b><p class="mute">Domyślnie Groq: jeden klucz do transkrypcji i do notatek. Klucz tworzysz na console.groq.com/keys. Jest zapisany tylko w tej przeglądarce i wysyłany wyłącznie do adresu poniżej.</p>' +
+    '<label for="sttKey">Klucz</label><input id="sttKey" type="password" value="' + esc(CFG.sttKey) + '" placeholder="gsk_…" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+    '<label for="sttBase">Adres API</label><input id="sttBase" value="' + esc(CFG.sttBase) + '" autocapitalize="off" spellcheck="false">' +
+    '<div class="row" style="margin-top:12px"><button class="btn pri" data-act="test">Zapisz i sprawdź</button></div><div id="testmsg" class="mute" style="margin-top:8px"></div></div>' +
+    '<div class="card"><b>Modele</b><label for="sttModel">Transkrypcja</label><input id="sttModel" list="sttList" value="' + esc(CFG.sttModel) + '" autocapitalize="off" spellcheck="false"><datalist id="sttList"></datalist>' +
+    '<label for="llmModel">Notatki</label><input id="llmModel" list="llmList" value="' + esc(CFG.llmModel) + '" autocapitalize="off" spellcheck="false"><datalist id="llmList"></datalist>' +
+    '<label for="every">Nowe notatki co (minuty)</label><select id="every">' + [2, 3, 4, 5].map(n => '<option' + (CFG.notesEveryMin === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
+    '<label for="amode">Format dźwięku</label><select id="amode"><option value="auto"' + (CFG.audioMode === 'auto' ? ' selected' : '') + '>Automatyczny</option><option value="mr"' + (CFG.audioMode === 'mr' ? ' selected' : '') + '>Skompresowany (mniej danych)</option><option value="wav"' + (CFG.audioMode === 'wav' ? ' selected' : '') + '>WAV (awaryjny, ok. 2 MB na minutę)</option></select>' +
+    '<details><summary>Inny dostawca do notatek</summary><label><input type="checkbox" id="llmSame" style="width:auto;min-height:0;margin-right:8px"' + (CFG.llmSame ? ' checked' : '') + '>Ten sam klucz i adres co transkrypcja</label><label for="llmBase">Adres API (zgodny z OpenAI)</label><input id="llmBase" value="' + esc(CFG.llmBase) + '" placeholder="https://openrouter.ai/api/v1" autocapitalize="off" spellcheck="false"><label for="llmKey">Klucz</label><input id="llmKey" type="password" value="' + esc(CFG.llmKey) + '" autocomplete="off"></details>' +
+    '<div class="row" style="margin-top:12px"><button class="btn" data-act="savecfg">Zapisz</button></div></div>' +
+    '<div class="card"><b>Kopia archiwum</b><p class="mute">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj lub udostępniaj od razu, a co jakiś czas zrób kopię.</p><div class="row"><button class="btn sm" data-act="export">Pobierz kopię</button><button class="btn sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></div>';
+}
+function readSettingsForm(){
+  const v = id => { const e = $('#' + id); return e ? e.value.trim() : null; };
+  if (v('sttKey') !== null) CFG.sttKey = v('sttKey'); if (v('sttBase')) CFG.sttBase = v('sttBase').replace(/\/+$/, '');
+  if (v('sttModel')) CFG.sttModel = v('sttModel'); if (v('llmModel')) CFG.llmModel = v('llmModel');
+  if ($('#every')) CFG.notesEveryMin = parseInt($('#every').value, 10) || 3; if ($('#amode')) CFG.audioMode = $('#amode').value;
+  if ($('#llmSame')) CFG.llmSame = $('#llmSame').checked; if (v('llmBase') !== null) CFG.llmBase = v('llmBase').replace(/\/+$/, ''); if (v('llmKey') !== null) CFG.llmKey = v('llmKey');
+  if (CFG.audioMode !== 'auto') CFG.autoWav = false;
+  saveCfg();
+}
+async function testConn(){
+  readSettingsForm(); const m = $('#testmsg'); m.className = 'mute'; m.textContent = 'Sprawdzam…';
+  try {
+    const j = await api(CFG.sttBase, CFG.sttKey, '/models'); const ids = (j.data || []).map(x => x.id).sort();
+    const stt = ids.filter(i => /whisper|transcri/i.test(i)), llm = ids.filter(i => !/whisper|transcri|tts|guard|embed|speech|orpheus|playai/i.test(i));
+    $('#sttList').innerHTML = stt.map(i => '<option value="' + esc(i) + '">').join(''); $('#llmList').innerHTML = llm.map(i => '<option value="' + esc(i) + '">').join('');
+    const warn = []; if (ids.length && !ids.includes(CFG.sttModel)) warn.push('modelu transkrypcji „' + CFG.sttModel + '” nie ma na liście'); if (CFG.llmSame && ids.length && !ids.includes(CFG.llmModel)) warn.push('modelu notatek „' + CFG.llmModel + '” nie ma na liście');
+    CFG.keyOk = true; saveCfg(); m.className = warn.length ? 'err' : 'okc'; m.textContent = warn.length ? 'Klucz działa, ale ' + warn.join(' i ') + '. Wybierz inny z podpowiedzi.' : 'Działa. Klucz i modele są w porządku.';
+  } catch (e){ CFG.keyOk = false; saveCfg(); m.className = 'err'; m.textContent = e.status === 401 ? 'Klucz jest nieprawidłowy.' : e.message; }
+}
+async function finishLecture(L, redo){
+  const msg = $('#msg') || {}; if (R){ toast('Najpierw zakończ bieżące nagranie.'); return; }
+  if (redo){ L.notes = ''; L.summary = ''; L.notedChars = 0; L.topic = ''; }
+  R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:0, virtual:true};
+  try {
+    const full = transcriptText(L);
+    while ((L.notedChars || 0) < full.length && !R.notesErrFatal){
+      const before = L.notedChars || 0; msg.textContent = 'Piszę notatki… ' + Math.round(before / Math.max(1, full.length) * 100) + '%';
+      const rest = full.slice(before); let take = rest.slice(0, 4200);
+      if (rest.length > 4200){ const cut = Math.max(take.lastIndexOf('. '), take.lastIndexOf('? '), take.lastIndexOf('! ')); if (cut > 2000) take = take.slice(0, cut + 1); }
+      const user = 'Przedmiot: ' + L.course + '\n\nDotychczasowe notatki (końcówka, tylko dla ciągłości):\n"""\n' + (L.notes ? L.notes.slice(-1500) : '(jeszcze brak)') + '\n"""\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
+      let add, tries = 0;
+      for (;;){ try { add = await chat(SYS_NOTES, user); break; } catch (e){ if (++tries >= 4) throw e; await sleep(Math.max(e.retryAfter * 1000, 3000)); } }
+      L.notedChars = before + take.length; if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
+      await DB.put(L);
+    }
+    msg.textContent = 'Robię podsumowanie…'; L.summaryErr = ''; await summarize(L);
+    if (!L.endedAt){ L.endedAt = L.startedAt + ((L.transcript.slice(-1)[0] || {}).t || 0) * 1000; L.durationSec = Math.round((L.endedAt - L.startedAt) / 1000); }
+    L.status = 'done'; await DB.put(L); R = null; render(); toast('Gotowe');
+  } catch (e){ R = null; msg.className = 'err'; msg.textContent = 'Nie udało się: ' + e.message; }
+}
+document.addEventListener('click', async ev => {
+  const b = ev.target.closest('[data-act]'); if (!b) return; const act = b.dataset.act, L = b.dataset.id && LECT.find(l => l.id === b.dataset.id);
+  if (act === 'settings') go('settings');
+  else if (act === 'home') go('home');
+  else if (act === 'back-rec') go('rec');
+  else if (act === 'start'){ b.disabled = true; await startRecording($('#course').value, ($('#hints') || {}).value); b.disabled = false; }
+  else if (act === 'stop') stopRecording();
+  else if (act === 'skipq'){ if (R) R.dropQueue = true; }
+  else if (act === 'blackout') $('#blackout').classList.add('on');
+  else if (act === 'tab'){ R.tab = b.dataset.tab; $('#notes').hidden = R.tab !== 'notes'; $('#tr').hidden = R.tab !== 'tr'; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === R.tab)); }
+  else if (act === 'open') go('lecture', b.dataset.id);
+  else if (act === 'share' && L) shareLecture(L);
+  else if (act === 'docx' && L) saveBlob(buildDocx(lectureMd(L)), fileBase(L) + '.docx');
+  else if (act === 'copy' && L){ try { await navigator.clipboard.writeText(mdPlain(lectureMd(L))); toast('Skopiowane'); } catch { toast('Nie udało się skopiować'); } }
+  else if (act === 'del' && L){ if (confirm('Usunąć ten wykład z archiwum?')){ LECT = LECT.filter(l => l.id !== L.id); await DB.del(L.id); go('home'); } }
+  else if (act === 'finish' && L) finishLecture(L, false);
+  else if (act === 'redo' && L){ if (confirm('Napisać notatki od nowa z zapisanej transkrypcji?')) finishLecture(L, true); }
+  else if (act === 'test') testConn();
+  else if (act === 'savecfg'){ readSettingsForm(); toast('Zapisane'); }
+  else if (act === 'export') saveBlob(new Blob([JSON.stringify({app:'slucham', v:1, lectures:LECT})], {type:'application/json'}), 'slucham-archiwum-' + new Date().toISOString().slice(0, 10) + '.json');
+  else if (act === 'import') $('#impf').click();
+});
+document.addEventListener('change', async ev => {
+  if (ev.target.id === 'impf' && ev.target.files[0]){
+    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } sortLect(); toast('Wczytano wykładów: ' + n); }
+    catch { toast('To nie jest plik kopii archiwum.'); }
+  }
+  if (ev.target.id === 'course'){ const h = $('#hints'); if (h) h.value = (CFG.courses[ev.target.value.trim()] || {}).hints || ''; }
+});
+$('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
+
+/* ================= boot ================= */
+(async () => {
+  await DB.open(); LECT = await DB.all(); sortLect();
+  for (const l of LECT) if (l.status === 'recording'){ l.status = 'interrupted'; DB.put(l); }
+  render();
+})();
+window.__slucham = {buildDocx, mdBlocks, mdHtml, cleanText, encodeWav, downTo16k, lectureMd, mdPlain, zipStore, crc32};
+</script>
+</body>
+</html>
