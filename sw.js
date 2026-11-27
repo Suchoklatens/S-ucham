@@ -1,6 +1,6 @@
 // słuch'am: keeps the app's own files on the phone so it opens without internet.
 // Bump VERSION with every deploy (together with APP_VERSION in index.html and version.json).
-const VERSION = '2026-11-27.14';
+const VERSION = '2026-11-27.15';
 const CACHE = 'slucham-' + VERSION;
 const FILES = ['./', 'index.html', 'manifest.json', 'apple-touch-icon.png', 'icon-192.png', 'icon-512.png'];
 

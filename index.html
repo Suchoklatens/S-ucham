@@ -298,7 +298,6 @@ body.has-player #app{padding-bottom:96px}
 .cal-d.sel.today span{color:var(--pri-ink)}
 .cal-d i{display:flex;gap:3px;height:4px}
 .cal-d i b{width:4px;height:4px;border-radius:50%;background:var(--ink2)}
-.cal-d.sel i b{background:var(--pri-ink)}
 .cal-today{display:block;margin:6px auto 0}
 .cal-empty{margin:0 0 12px}
 .ev-dt{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
@@ -325,6 +324,22 @@ body.has-player #app{padding-bottom:96px}
 .imp-dt input,.ev-dt input{min-width:0;width:100%}
 .imp-note{font-size:13px;line-height:18px;color:var(--ink2);margin-top:8px}
 .imp-warn{font-size:13px;line-height:18px;color:var(--warn);margin-top:6px}
+
+body::before{content:'';position:fixed;top:0;left:0;right:0;height:env(safe-area-inset-top);background:var(--bg);z-index:45;pointer-events:none}
+.cal-d.has span{font-weight:600}
+.cal-d i{height:6px;gap:3px}
+.cal-d i b{width:6px;height:6px}
+.cal-d i b.exam,.cal-legend b.exam{background:var(--rec)}
+.cal-d i b.test,.cal-legend b.test{background:var(--warn)}
+.cal-d i b.other,.cal-legend b.other{background:var(--ink3)}
+.cal-d.sel i b{box-shadow:0 0 0 1.5px var(--pri-bg)}
+.cal-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:10px 6px 4px;font-size:12px;line-height:16px;color:var(--ink3)}
+.cal-legend span{display:inline-flex;align-items:center;gap:6px}
+.cal-legend b{width:8px;height:8px;border-radius:50%;display:inline-block}
+.cal-legend .cal-today{margin:0 0 0 auto}
+.ev.exam .ev-when,.ev.test .ev-when{position:relative;padding-left:12px}
+.ev.exam .ev-when::before,.ev.test .ev-when::before{content:'';position:absolute;left:0;top:6px;width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.ev.exam .ev-when::before{background:var(--rec)}
 </style>
 </head>
 <body>
@@ -1557,14 +1572,15 @@ function findEvent(id){
   for (const l of LECT){ const e = (l.events || []).find(x => x.id === id); if (e) return {e, L:l}; }
   const e = (CFG.events || []).find(x => x.id === id); return e ? {e, L:null} : null;
 }
+const evKind = e => /egzamin/i.test(e.text) ? 'exam' : /kolokw|test|sprawdzian|kartk|zaliczen/i.test(e.text) ? 'test' : 'other';
 const evSort = (a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '99').localeCompare(b.time || '99');
 function upcomingEvents(n){ const t = todayYmd(); return allEvents().filter(e => e.date && e.date >= t).sort(evSort).slice(0, n); }
 
 function eventRow(e, inLecture){
   const d = e.date ? evDate(e.date) : null, isToday = e.date === todayYmd();
-  const when = d ? esc(isToday ? 'dziś' : d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'})) + '<span>' + esc(e.time || (isToday ? 'cały dzień' : d.toLocaleDateString('pl-PL', {weekday:'long'}))) + '</span>' : 'bez daty';
-  const sub = inLecture ? (e.time ? '' : '') : [e.course, e.src === 'manual' ? 'dodane ręcznie' : ''].filter(Boolean).join(' · ');
-  return '<div class="ev"><button class="ev-hit" data-act="evedit" data-ev="' + esc(e.id) + '"><div class="ev-when' + (d ? '' : ' nodate') + '">' + when + '</div><div class="ev-main"><div class="ev-text">' + esc(e.text) + '</div>' + (sub ? '<div class="ev-sub">' + esc(sub) + '</div>' : '') + '</div></button>' +
+  const when = d ? esc(isToday ? 'dziś' : d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'})) + '<span>' + esc(e.time || (isToday ? 'cały dzień' : d.toLocaleDateString('pl-PL', {weekday:'short'}))) + '</span>' : 'bez daty';
+  const sub = inLecture ? (e.time ? '' : '') : e.course || '';
+  return '<div class="ev ' + evKind(e) + '"><button class="ev-hit" data-act="evedit" data-ev="' + esc(e.id) + '"><div class="ev-when' + (d ? '' : ' nodate') + '">' + when + '</div><div class="ev-main"><div class="ev-text">' + esc(e.text) + '</div>' + (sub ? '<div class="ev-sub">' + esc(sub) + '</div>' : '') + '</div></button>' +
     (d ? '<button class="icon-btn sm" data-act="ics" data-ev="' + esc(e.id) + '" aria-label="Dodaj do kalendarza iPhone&#39;a">' + icon('calendar') + '</button>' : '') + '</div>';
 }
 
@@ -1614,7 +1630,7 @@ function vCal(){
   for (let i = 0; i < 42; i++){
     const d = new Date(start); d.setDate(start.getDate() + i); const k = ymd(d), n = (byDay[k] || []).length;
     if (i === 35 && d.getMonth() !== CAL.m) break;
-    cells.push('<button class="cal-d' + (d.getMonth() !== CAL.m ? ' out' : '') + (k === today ? ' today' : '') + (k === CAL.sel ? ' sel' : '') + '" data-act="calday" data-d="' + k + '" aria-label="' + esc(d.toLocaleDateString('pl-PL', {day:'numeric', month:'long'})) + (n ? ', wydarzenia: ' + n : '') + '"><span>' + d.getDate() + '</span>' + (n ? '<i>' + '<b></b>'.repeat(Math.min(3, n)) + '</i>' : '') + '</button>');
+    cells.push('<button class="cal-d' + (n ? ' has' : '') + (d.getMonth() !== CAL.m ? ' out' : '') + (k === today ? ' today' : '') + (k === CAL.sel ? ' sel' : '') + '" data-act="calday" data-d="' + k + '" aria-label="' + esc(d.toLocaleDateString('pl-PL', {day:'numeric', month:'long'})) + (n ? ', wydarzenia: ' + n : '') + '"><span>' + d.getDate() + '</span>' + (n ? '<i>' + byDay[k].slice().sort((a, b) => ['exam', 'test', 'other'].indexOf(evKind(a)) - ['exam', 'test', 'other'].indexOf(evKind(b))).slice(0, 3).map(e => '<b class="' + evKind(e) + '"></b>').join('') + '</i>' : '') + '</button>');
   }
   const sel = (byDay[CAL.sel] || []).sort(evSort), sd = evDate(CAL.sel);
   const undated = evs.filter(e => !e.date);
@@ -1623,13 +1639,14 @@ function vCal(){
     '<h1 class="page-title cal-title">Kalendarz</h1>' +
     '<section class="panel cal"><div class="cal-nav"><button class="icon-btn" data-act="calprev" aria-label="Poprzedni miesiąc">' + icon('back') + '</button><div class="cal-month">' + MONTHS[CAL.m] + ' ' + CAL.y + '</div><button class="icon-btn flip" data-act="calnext" aria-label="Następny miesiąc">' + icon('back') + '</button></div>' +
       '<div class="cal-grid">' + WDAYS.map(w => '<div class="cal-w">' + w + '</div>').join('') + cells.join('') + '</div>' +
-      (CAL.sel !== today || CAL.m !== new Date().getMonth() ? '<button class="btn ghost sm cal-today" data-act="caltoday">Dziś</button>' : '') + '</section>' +
+      '<div class="cal-legend"><span><b class="exam"></b>egzamin</span><span><b class="test"></b>kolokwium, test</span><span><b class="other"></b>inne</span>' +
+      (CAL.sel !== today || CAL.m !== new Date().getMonth() ? '<button class="btn ghost sm cal-today" data-act="caltoday">Dziś</button>' : '') + '</div></section>' +
     '<div class="sec-head"><h2>' + esc(sd.toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long'}).replace(/^./, c => c.toUpperCase())) + '</h2></div>' +
     (sel.length ? '<div class="list">' + sel.map(e => eventRow(e, false)).join('') + '</div>' : '<p class="mute cal-empty">Nic zaplanowanego.</p>') +
     '<button class="btn sec wide" data-act="evnew" data-d="' + CAL.sel + '">' + icon('plus') + 'Dodaj wydarzenie na ten dzień</button>' +
     '<button class="btn ghost wide imp-open" data-act="evimport">' + icon('camera') + 'Wczytaj terminy ze zrzutu ekranu lub tekstu</button>' +
     (next.length ? '<div class="sec-head"><h2>Później</h2></div><div class="list">' + next.map(e => eventRow(e, false)).join('') + '</div>' : '') +
-    (undated.length ? '<div class="sec-head"><h2>Bez daty</h2><span class="count">' + undated.length + '</span></div><p class="help" style="margin:-4px 0 8px">Padły na wykładzie bez dnia. Stuknij, żeby ustalić datę.</p><div class="list">' + undated.map(e => eventRow(e, false)).join('') + '</div>' : '') +
+    (undated.length ? '<div class="sec-head"><h2>Bez daty</h2><span class="count">' + undated.length + '</span></div><p class="help" style="margin:-4px 0 8px">Bez ustalonego dnia. Stuknij, żeby go wybrać.</p><div class="list">' + undated.map(e => eventRow(e, false)).join('') + '</div>' : '') +
     '<p class="help">Wydarzenia z wykładów dopisują się same w trakcie nagrywania. Ikona kalendarza przy wydarzeniu dodaje je do kalendarza iPhone&#39;a.</p>';
 }
 function vEvForm(arg){
@@ -1712,7 +1729,7 @@ function vImport(){
       '<div class="row-btns"><button class="btn sec" data-act="impimg">' + icon('camera') + 'Wybierz zrzuty ekranu</button></div>' +
       '<input type="file" id="impimgf" accept="image/*" multiple hidden>' +
       (IMP.images.length ? '<div class="imp-thumbs">' + IMP.images.map((u, i) => '<div class="imp-thumb"><img src="' + u + '" alt="Zrzut ' + (i + 1) + '"><button class="icon-btn sm" data-act="impdrop" data-i="' + i + '" aria-label="Usuń zrzut">' + icon('x') + '</button></div>').join('') + '</div>' : '') +
-      '<label class="lbl" for="imptext">albo wklej tekst</label><textarea id="imptext" rows="4" placeholder="np. Prawo pracy – 15.12 sprawdzian testowy">' + esc(IMP.text) + '</textarea>' +
+      '<label class="lbl" for="imptext">albo wklej tekst albo listę terminów od Claude</label><textarea id="imptext" rows="4" placeholder="np. Prawo pracy – 15.12 sprawdzian testowy">' + esc(IMP.text) + '</textarea>' +
       '<div class="row-btns" style="margin-top:16px"><button class="btn pri" data-act="impread"' + (IMP.busy ? ' disabled' : '') + '>' + (IMP.busy ? 'Odczytuję…' : 'Odczytaj') + '</button></div>' +
       '<div id="impmsg" class="' + (IMP.err ? 'err' : 'mute') + '" style="margin-top:8px">' + esc(IMP.err) + '</div></section>' +
     (it ? (it.length ? '<div class="sec-head"><h2>Znalezione</h2><span class="count">' + it.length + '</span></div><div class="imp-list">' + rows + '</div>' +
@@ -1741,13 +1758,24 @@ function parseJsonObj(out){
 async function readImport(){
   IMP.text = (($('#imptext') || {}).value || '').trim();
   if (!IMP.images.length && !IMP.text){ IMP.err = 'Dodaj zrzut ekranu albo wklej tekst.'; render(); return; }
+  if (!IMP.images.length && /^\s*[\[{]/.test(IMP.text)){
+    try {
+      const j = JSON.parse(IMP.text), list = Array.isArray(j) ? j : (j.events || j.items || []);
+      if (list.length){ IMP.items = importItems(list); IMP.err = ''; render(); return; }
+    } catch {}
+  }
   IMP.busy = true; IMP.err = ''; render();
   const user = 'Dzisiaj jest ' + todayYmd() + '.' + (IMP.text ? '\n\nTekst z notatnika:\n<<<\n' + IMP.text.slice(0, 8000) + '\n>>>' : '') + (IMP.images.length ? '\n\nZrzuty ekranu z notatnika są w załączniku.' : '');
   try {
     const wait = sec => { const m = $('#impmsg'); if (m) m.textContent = 'Czekam ' + sec + ' s na limit Groq'; };
     const out = await chat(SYS_IMPORT, user, wait, IMP.images.length ? {images:IMP.images, model:CFG.visionModel || 'qwen/qwen3.8-27b'} : null);
-    const j = parseJsonObj(out), existing = allEvents();
-    IMP.items = (j.items || []).map(x => {
+    IMP.items = importItems(parseJsonObj(out).items || []);
+  } catch (e){ IMP.err = 'Nie udało się odczytać: ' + e.message; }
+  IMP.busy = false; render();
+}
+function importItems(list){
+    const existing = allEvents();
+    return list.map(x => {
       const date = /^\d{4}-\d{2}-\d{2}$/.test(x.date || '') && !isNaN(evDate(x.date)) ? x.date : '';
       const time = /^\d{1,2}:\d{2}$/.test(x.time || '') ? x.time.padStart(5, '0') : '';
       const e = {course:String(x.course || '').trim().slice(0, 80), text:String(x.text || '').replace(/[*_]+/g, '').trim().slice(0, 160), date, time, note:String(x.note || '').trim().slice(0, 600), done:!!x.done};
@@ -1755,8 +1783,6 @@ async function readImport(){
       e.on = !e.done && !e.dup;
       return e;
     }).filter(e => e.text);
-  } catch (e){ IMP.err = 'Nie udało się odczytać: ' + e.message; }
-  IMP.busy = false; render();
 }
 function syncImportForm(){
   document.querySelectorAll('.imp-on').forEach(x => { IMP.items[x.dataset.i].on = x.checked; });
@@ -1934,7 +1960,7 @@ document.addEventListener('input', ev => { if (ev.target.id === 'q'){ FILTER.q =
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.14';
+const APP_VERSION = '2026-11-27.15';
 let SW_REG = null, RELOAD_PENDING = false;
 // a new version never interrupts a recording, notes being written or an edit: it waits for the next return to the archive
 function reloadWhenIdle(){ if (R || WORKING || VIEW.name !== 'home'){ RELOAD_PENDING = true; return; } location.reload(); }
