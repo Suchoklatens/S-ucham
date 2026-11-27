@@ -163,6 +163,42 @@ details[open]>summary .ic{transform:rotate(90deg)}
 .quiet{display:flex;gap:4px;flex-wrap:wrap;margin:4px -8px 0}
 #msg{margin-top:8px}
 
+/* recording extras */
+.rec-head.paused .rec-dot{animation:none;opacity:.35}
+.btn.mark{width:100%;margin-top:16px}
+.btn.pri-soft{background:var(--pri-bg);color:var(--pri-ink)}
+.md .li.imp::before{background:var(--rec);width:6px;height:6px;top:10px;left:1px}
+.md .li.imp b:first-child{color:var(--rec-ink)}
+.gap-note{margin-top:8px;font-size:13px;line-height:20px;color:var(--warn)}
+.btn.wide{width:100%;margin:0 0 12px}
+.edit-area{min-height:50vh;font-size:15px;line-height:1.5}
+.edit-area.short{min-height:120px}
+.panel.notice.tight{gap:12px}
+
+/* archive tools */
+.arch-tools{margin:0 0 12px}
+.search{display:flex;align-items:center;gap:8px;padding:0 12px;min-height:44px;border-radius:10px;background:var(--raised);color:var(--ink3)}
+.search input{background:transparent;border:0;padding:0;min-height:44px}
+.search input:focus{background:transparent;border:0}
+.search input:focus-visible{outline:none}
+.search:focus-within{box-shadow:inset 0 0 0 1px var(--ink3)}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none}
+.chips{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:12px -20px 0;padding:0 20px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-height:36px;padding:0 12px;border-radius:99px;background:var(--raised);color:var(--ink2);font-size:14px;line-height:1;white-space:nowrap;transition:background-color .16s var(--ease),color .16s var(--ease)}
+.chip.on{background:var(--pri-bg);color:var(--pri-ink)}
+.entry-snip{margin-top:4px;font-size:13px;line-height:20px;color:var(--ink2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.entry-snip mark{background:var(--raised);color:var(--ink);border-radius:3px;padding:0 2px}
+.btn.quiz-course{width:100%;margin:0 0 12px}
+
+/* review questions */
+.qlist{display:flex;flex-direction:column;gap:8px}
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 16px}
+.qcard>summary{align-items:flex-start;gap:12px;min-height:0;padding:14px 0;font-size:15px;line-height:22px;color:var(--ink)}
+.qn{flex:none;min-width:20px;font:400 12px/22px var(--mono);color:var(--ink3);font-variant-numeric:tabular-nums}
+.qa{padding:0 0 14px 32px;font-size:15px;line-height:22px;color:var(--ink2)}
+.qcard[open]>summary{color:var(--ink)}
+
 /* overlays */
 #blackout{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;padding:0 24px calc(48px + env(safe-area-inset-bottom));background:#000;color:#3d3d3d;font-size:13px;line-height:20px;text-align:center}
 #blackout.on{display:flex}
@@ -214,15 +250,22 @@ function saveCfg(){ try { localStorage.setItem('slucham_cfg', JSON.stringify(CFG
 /* ================= storage (IndexedDB, memory fallback) ================= */
 const DB = {
   db:null, mem:new Map(),
-  open(){ return new Promise(res => { try { const rq = indexedDB.open('slucham', 1);
-    rq.onupgradeneeded = () => rq.result.createObjectStore('lectures', {keyPath:'id'});
+  open(){ return new Promise(res => { try { const rq = indexedDB.open('slucham', 2);
+    rq.onupgradeneeded = () => { const d = rq.result; if (!d.objectStoreNames.contains('lectures')) d.createObjectStore('lectures', {keyPath:'id'}); if (!d.objectStoreNames.contains('segments')) d.createObjectStore('segments', {keyPath:'key'}); };
     rq.onsuccess = () => { this.db = rq.result; res(); }; rq.onerror = () => res(); } catch { res(); } }); },
   all(){ if (!this.db) return Promise.resolve([...this.mem.values()]);
     return new Promise(res => { try { const rq = this.db.transaction('lectures').objectStore('lectures').getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => res([]); } catch { res([]); } }); },
   put(l){ this.mem.set(l.id, l); if (!this.db) return Promise.resolve();
     return new Promise(res => { try { const tx = this.db.transaction('lectures', 'readwrite'); tx.objectStore('lectures').put(JSON.parse(JSON.stringify(l))); tx.oncomplete = () => res(); tx.onerror = () => res(); tx.onabort = () => res(); } catch { res(); } }); },
   del(id){ this.mem.delete(id); if (!this.db) return Promise.resolve();
-    return new Promise(res => { try { const tx = this.db.transaction('lectures', 'readwrite'); tx.objectStore('lectures').delete(id); tx.oncomplete = () => res(); tx.onerror = () => res(); } catch { res(); } }); }
+    return new Promise(res => { try { const tx = this.db.transaction('lectures', 'readwrite'); tx.objectStore('lectures').delete(id); tx.oncomplete = () => res(); tx.onerror = () => res(); } catch { res(); } }); },
+  // audio fragments not yet transcribed: kept on the phone until Groq has them
+  segPut(r){ if (!this.db) return Promise.resolve();
+    return new Promise(res => { try { const tx = this.db.transaction('segments', 'readwrite'); tx.objectStore('segments').put(r); tx.oncomplete = () => res(); tx.onerror = () => res(); tx.onabort = () => res(); } catch { res(); } }); },
+  segDel(key){ if (!this.db || !key) return Promise.resolve();
+    return new Promise(res => { try { const tx = this.db.transaction('segments', 'readwrite'); tx.objectStore('segments').delete(key); tx.oncomplete = () => res(); tx.onerror = () => res(); } catch { res(); } }); },
+  segAll(){ if (!this.db) return Promise.resolve([]);
+    return new Promise(res => { try { const rq = this.db.transaction('segments').objectStore('segments').getAll(); rq.onsuccess = () => res(rq.result || []); rq.onerror = () => res([]); } catch { res([]); } }); }
 };
 let LECT = [];
 const sortLect = () => LECT.sort((a, b) => b.startedAt - a.startedAt);
@@ -260,15 +303,21 @@ async function paceTokens(need, onWait){
     await sleep(Math.min(waitMs, 5000));
   }
 }
-const FALLBACK_MODEL = {'openai/gpt-oss-120b':'openai/gpt-oss-20b'};
+const NOTE_CHAIN = {'openai/gpt-oss-120b':['openai/gpt-oss-20b', 'qwen/qwen3.8-27b']};
+const chainFor = primary => [primary, ...(NOTE_CHAIN[primary] || [])];
 function activeModel(primary){
-  const fb = FALLBACK_MODEL[primary];
-  return fb && CFG.fbUntil && Date.now() < CFG.fbUntil && CFG.fbFor === primary ? fb : primary;
+  const ex = CFG.exhausted || {};
+  return chainFor(primary).find(m => !(ex[m] && Date.now() < ex[m])) || primary;
+}
+function tuneBody(body){
+  delete body.reasoning_effort;
+  if (/gpt-oss/i.test(body.model)) body.reasoning_effort = 'low';
+  else if (/qwen3/i.test(body.model)) body.reasoning_effort = 'none';
 }
 async function chat(system, user, onWait){
   const c = llmConf();
   const body = {model:activeModel(c.model), messages:[{role:'system', content:system}, {role:'user', content:user}], temperature:0.2};
-  if (/gpt-oss/i.test(c.model)) body.reasoning_effort = 'low';
+  tuneBody(body);
   const need = estTokens(system + user);
   let tries = 0, j;
   for (;;){
@@ -281,24 +330,28 @@ async function chat(system, user, onWait){
     } catch (e){
       const i = TOK_WINDOW.indexOf(slot); if (i >= 0) TOK_WINDOW.splice(i, 1);
       if (e.status === 400 && (body.temperature !== undefined || body.reasoning_effort)){ delete body.temperature; delete body.reasoning_effort; continue; }
+      if (e.status === 404 && body.model !== c.model){ CFG.exhausted = CFG.exhausted || {}; CFG.exhausted[body.model] = Date.now() + 24 * 3600000; saveCfg(); body.model = activeModel(c.model); tuneBody(body); continue; }
       if (e.status === 429 && !e.daily && ++tries <= 8){
         const w = Math.max(e.retryAfter || 0, 5) + 1;
         onWait && onWait(Math.ceil(w)); await sleep(w * 1000); continue;
       }
-      if (e.status === 429 && e.daily && body.model === c.model && FALLBACK_MODEL[c.model]){
-        CFG.fbFor = c.model; CFG.fbUntil = Date.now() + Math.max(waitFromMsg(e.message) * 1000, 15 * 60000); saveCfg();
-        body.model = FALLBACK_MODEL[c.model]; tries = 0;
-        toast('Główny model wyczerpał dzienny limit. Notatki pisze teraz model zapasowy', 4000);
-        continue;
+      if (e.status === 429 && e.daily){
+        CFG.exhausted = CFG.exhausted || {}; CFG.exhausted[body.model] = Date.now() + Math.max(waitFromMsg(e.message) * 1000, 15 * 60000); saveCfg();
+        const next = activeModel(c.model);
+        if (next !== body.model && !(CFG.exhausted[next] > Date.now())){
+          body.model = next; tuneBody(body); tries = 0;
+          toast('Model notatek wyczerpał dzienny limit. Notatki pisze teraz model zapasowy (' + next.split('/').pop() + ')', 4000);
+          continue;
+        }
+        e.message = (chainFor(c.model).length > 1 ? 'Wyczerpany dzienny limit wszystkich modeli notatek w Groq.' : 'Wyczerpany dzienny limit notatek w Groq.') + ' Transkrypcja jest zapisana, notatki dokończysz po odnowieniu limitu albo z innym modelem w ustawieniach.';
       }
-      if (e.status === 429 && e.daily) e.message = (body.model !== c.model ? 'Wyczerpany dzienny limit obu modeli notatek w Groq.' : 'Wyczerpany dzienny limit notatek w Groq.') + ' Transkrypcja jest zapisana, notatki dokończysz po odnowieniu limitu albo z innym modelem w ustawieniach.';
       throw e;
     }
   }
   let t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '';
   if (Array.isArray(t)) t = t.map(p => p.text || '').join('');
   LAST_MODEL = body.model;
-  return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+  return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/^[\s\S]*<\/think>/, '').trim();
 }
 let LAST_MODEL = '';
 
@@ -373,10 +426,11 @@ class Rec {
     if (this.sp) return;
     this.sp = this.ctx.createScriptProcessor(4096, 1, 1); this.src.connect(this.sp);
     const g = this.ctx.createGain(); g.gain.value = 0; this.sp.connect(g); g.connect(this.ctx.destination);
-    this.sp.onaudioprocess = e => { if (this.mode !== 'wav' || this.stopped) return; this.pcm.push(downTo16k(e.inputBuffer.getChannelData(0), this.ctx.sampleRate, this.ds)); };
+    this.sp.onaudioprocess = e => { if (this.mode !== 'wav' || this.stopped || this.paused) return; this.pcm.push(downTo16k(e.inputBuffer.getChannelData(0), this.ctx.sampleRate, this.ds)); };
   }
   tick(){
     if (this.stopped) return;
+    if (this.paused){ this.onLevel && this.onLevel(0); return; }
     let rms = 0;
     try { this.an.getFloatTimeDomainData(this.buf); let s = 0; for (let i = 0; i < this.buf.length; i++) s += this.buf[i] * this.buf[i]; rms = Math.sqrt(s / this.buf.length); } catch {}
     this.hist.push(rms); if (this.hist.length > 120) this.hist.shift();
@@ -389,8 +443,8 @@ class Rec {
     if (el >= this.maxSeg || (el >= this.minSeg && this.quietMs >= 300)) this.rotate(false);
   }
   rotate(final){
-    const t1 = Date.now(), seg = {idx:this.n++, t0:this.segT0, t1, peak:this.segPeak};
-    this.segT0 = t1; this.segPeak = 0; this.quietMs = 0;
+    const t1 = Date.now(), seg = {idx:this.n++, t0:this.segT0, t1, peak:this.segPeak, important:!!this.important};
+    this.segT0 = t1; this.segPeak = 0; this.quietMs = 0; this.important = false;
     return new Promise(resolve => {
       if (this.mode === 'mr'){
         const old = this.mr, chunks = this.chunks, mime = this.mime; let late = false;
@@ -411,6 +465,31 @@ class Rec {
     });
   }
   switchToWav(){ if (this.mode === 'wav' || this.stopped) return; this.toWav = true; this.rotate(false); }
+  async pause(){
+    if (this.paused || this.stopped) return;
+    this.paused = true; await this.rotate(true);
+  }
+  resume(){
+    if (!this.paused || this.stopped) return;
+    this.paused = false; this.segT0 = Date.now(); this.segPeak = 0; this.quietMs = 0; this.pcm = [];
+    if (this.mode === 'mr'){ try { this.newMR(); } catch { this.mode = 'wav'; this.startPcm(); } }
+  }
+  // the fragment being recorded right now (up to the tap) is marked as important
+  markImportant(){
+    this.important = true;
+    if (!this.paused && Date.now() - this.segT0 > 4000) this.rotate(false);
+  }
+  // iOS cuts the microphone of home-screen apps when the screen locks: take it again and carry on
+  async restart(){
+    clearInterval(this.timer);
+    const wasMr = this.mode === 'mr';
+    if (!this.paused){ try { await Promise.race([this.rotate(true), sleep(1500)]); } catch {} }
+    try { this.stream.getTracks().forEach(t => t.stop()); } catch {}
+    try { if (this.sp) this.sp.disconnect(); this.ctx.close(); } catch {}
+    this.sp = null; this.pcm = []; this.paused = false; this.stopped = false; this.mr = null;
+    await this.start();
+    if (!wasMr && this.mode === 'mr'){ this.mode = 'mr'; }
+  }
   async resumeIfNeeded(){
     if (this.stopped) return true;
     try { if (this.ctx.state !== 'running') await this.ctx.resume(); } catch {}
@@ -446,13 +525,14 @@ Forma:
 - Przeczenia i wyjątki („nie dotyczy”, „wyłącznie dla”, „chyba że”, „oprócz”) zapisuj dokładnie tak, jak padły. Nie odwracaj ich sensu.
 - Nie uzupełniaj wyliczeń. Jeśli wykładowca zapowiada na przykład trzy elementy, a w tym fragmencie padły dwa, zapisz dwa. Jeśli fragment kontynuuje wyliczenie z końcówki notatek, kontynuuj je zamiast zaczynać nowe.
 - Nie powtarzaj tego, co już jest w notatkach. Jeśli fragment ciągnie ostatni temat, dopisz same punkty bez nagłówka. Jeśli wykładowca wraca do tematu, który ma już nagłówek na liście, użyj dokładnie tego samego nagłówka (aplikacja połączy te części) i zapisz tylko nowe informacje.
+- Tekst między ⟦WAŻNE⟧ a ⟦/WAŻNE⟧ użytkownik oznaczył w trakcie wykładu jako ważny. Zapisz z niego wszystkie konkretne informacje i zacznij każdy taki punkt od **Ważne:**. Samych znaczników nie przepisuj.
 - Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej albo wszystko już jest w notatkach, zwróć dokładnie: BRAK`;
 const SYS_SUM = `Dostajesz notatki z jednego wykładu. Korzystaj wyłącznie z nich: nie dodawaj definicji, pojęć ani faktów, których w notatkach nie ma. Odpowiedz po polsku dokładnie w tym układzie, bez pogrubień w pierwszej linii:
 TEMAT: <temat wykładu w maksymalnie 8 słowach>
 ## Najważniejsze
 - 5 do 8 punktów z najważniejszymi tezami wykładu
 ## Do zapamiętania
-- definicje i terminy, które padły w notatkach, zapowiedzi egzaminu i kolokwiów oraz zalecana literatura; jeśli nic takiego nie ma, pomiń całą tę sekcję`;
+- definicje i terminy, które padły w notatkach, zapowiedzi egzaminu i kolokwiów oraz zalecana literatura; każdy punkt notatek zaczynający się od **Ważne:** musi się tu znaleźć; jeśli nic takiego nie ma, pomiń całą tę sekcję`;
 function notesUser(L, take){
   const heads = [...String(L.notes || '').matchAll(/^#{1,3}\s+(.+)$/gm)].map(m => '- ' + m[1].trim());
   return 'Przedmiot: ' + L.course +
@@ -461,8 +541,9 @@ function notesUser(L, take){
     '\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
 }
 
-async function transcribeSeg(seg){
-  const L = R.lecture, hints = ((CFG.courses[L.course] || {}).hints || '').trim();
+async function transcribeSeg(seg, L, ctx){
+  L = L || R.lecture; ctx = ctx || R || {};
+  const hints = ((CFG.courses[L.course] || {}).hints || '').trim();
   // Groq accepts at most 224 prompt tokens: keywords first (they matter most), then a short tail of the transcript
   const head = hints ? ('Wykład: ' + L.course + '. Terminy: ' + hints).slice(0, 260) + '.' : '';
   const tail = transcriptText(L).slice(-Math.max(0, 380 - head.length)).replace(/^\S*\s/, '');
@@ -474,7 +555,7 @@ async function transcribeSeg(seg){
     if (prompt && usePrompt) fd.append('prompt', prompt);
     return api(CFG.sttBase, CFG.sttKey, '/audio/transcriptions', {method:'POST', body:fd});
   };
-  if (R.forceWav && seg.ext !== 'wav'){ try { seg.blob = await blobToWav(seg.blob, R.rec && !R.rec.stopped ? R.rec.ctx : null); seg.ext = 'wav'; } catch {} }
+  if (ctx.forceWav && seg.ext !== 'wav'){ try { seg.blob = await blobToWav(seg.blob, ctx.rec && !ctx.rec.stopped ? ctx.rec.ctx : null); seg.ext = 'wav'; } catch {} }
   let j;
   try { j = await send(seg.blob, seg.ext); }
   catch (e){
@@ -483,33 +564,43 @@ async function transcribeSeg(seg){
     try { j = await send(seg.blob, seg.ext, false); }
     catch (e2){
       if (e2.status !== 400 || seg.ext === 'wav') throw e2;
-      const wav = await blobToWav(seg.blob, R.rec && !R.rec.stopped ? R.rec.ctx : null);
+      const wav = await blobToWav(seg.blob, ctx.rec && !ctx.rec.stopped ? ctx.rec.ctx : null);
       j = await send(wav, 'wav', false);
-      R.forceWav = true; CFG.autoWav = true; saveCfg(); if (R.rec) R.rec.switchToWav();
+      if (ctx.rec){ ctx.forceWav = true; CFG.autoWav = true; saveCfg(); ctx.rec.switchToWav(); }
     }
   }
   let text = '';
   if (Array.isArray(j.segments) && j.segments.length) text = j.segments.filter(s => !(s.no_speech_prob > 0.7 && s.avg_logprob < -1)).map(s => s.text).join(' ');
   else text = j.text || '';
-  return cleanText(text, prompt);
+  text = cleanText(text, prompt);
+  return text && seg.important ? IMP_OPEN + ' ' + text + ' ' + IMP_CLOSE : text;
+}
+const IMP_OPEN = '⟦WAŻNE⟧', IMP_CLOSE = '⟦/WAŻNE⟧';
+async function persistSeg(seg, L){
+  try {
+    const data = await seg.blob.arrayBuffer();
+    seg.key = L.id + ':' + seg.t0 + ':' + seg.idx;
+    await DB.segPut({key:seg.key, lid:L.id, idx:seg.idx, t0:seg.t0, t1:seg.t1, peak:seg.peak, important:!!seg.important, ext:seg.ext, type:seg.blob.type, data});
+  } catch {}
 }
 async function pump(){
   if (!R || R.pumping) return; R.pumping = true;
   while (R && R.queue.length && !R.dropQueue){
     const seg = R.queue[0];
-    if (seg.peak < 0.0006 && !dbg().noSkip){ R.queue.shift(); R.skipped++; continue; }
+    if (seg.peak < 0.0006 && !seg.important && !dbg().noSkip){ R.queue.shift(); R.skipped++; DB.segDel(seg.key); continue; }
     try {
-      const text = await transcribeSeg(seg);
-      R.queue.shift(); R.done++; R.netErr = '';
+      const text = await transcribeSeg(seg, R.lecture, R);
+      R.queue.shift(); R.done++; R.netErr = ''; DB.segDel(seg.key);
       if (text){ R.lecture.transcript.push({t:Math.round((seg.t0 - R.lecture.startedAt) / 1000), text}); DB.put(R.lecture); uiTranscript(); }
       uiStatus(); maybeNotes(false);
     } catch (e){
       seg.tries = (seg.tries || 0) + 1; R.netErr = e.message; uiStatus();
-      if ((e.status === 400 || e.status === 413 || e.status === 422) && seg.tries >= 2){ R.queue.shift(); R.failed++; continue; }
+      if ((e.status === 400 || e.status === 413 || e.status === 422) && seg.tries >= 2){ R.queue.shift(); R.failed++; DB.segDel(seg.key); continue; }
       await sleep(Math.min(30000, Math.max(e.retryAfter * 1000, 1500 * seg.tries)));
     }
   }
-  if (R){ R.pumping = false; if (R.dropQueue){ R.failed += R.queue.length; R.queue = []; } }
+  // "finish without waiting": the fragments stay on the phone and are sent the next time the app opens
+  if (R){ R.pumping = false; if (R.dropQueue){ R.left = R.queue.length; R.queue = []; } }
 }
 async function maybeNotes(force){
   if (!R || R.notesBusy) return; if (!force && R.notesHold && Date.now() < R.notesHold) return; const L = R.lecture; R.notesBusy = true;
@@ -560,43 +651,111 @@ async function startRecording(course, hints){
   course = (course || '').trim() || 'Wykład';
   CFG.courses[course] = Object.assign(CFG.courses[course] || {}, {hints:(hints || '').trim()}); CFG.lastCourse = course; saveCfg();
   const L = {id:'L' + Date.now().toString(36), course, topic:'', startedAt:Date.now(), endedAt:0, durationSec:0, transcript:[], notes:'', summary:'', notedChars:0, status:'recording'};
-  R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:Date.now(), tab:'notes', forceWav:false};
+  R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:Date.now(), tab:'notes', forceWav:false, paused:false, pausedMs:0, marks:0};
   WAVE.length = 0;
-  R.rec = new Rec(seg => { if (seg.blob && seg.blob.size > 800){ R.queue.push(seg); pump(); } uiStatus(); }, pushLevel);
+  const sess = R;
+  R.rec = new Rec(async seg => {
+    if (seg.blob && (seg.blob.size > 800 || seg.important)){
+      sess.persisting = (sess.persisting || 0) + 1;
+      try { await persistSeg(seg, L); } finally { sess.persisting--; }
+      if (R === sess && !sess.dropQueue){ sess.queue.push(seg); pump(); }
+    }
+    uiStatus();
+  }, pushLevel);
   try { await R.rec.start(); }
   catch (e){ R = null; toast(e && e.name === 'NotAllowedError' ? 'Brak zgody na mikrofon. Zezwól w ustawieniach Safari.' : 'Nie udało się uruchomić mikrofonu: ' + (e && e.message || e), 5000); return; }
   LECT.unshift(L); await DB.put(L); wakeOn();
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
-  R.clock = setInterval(() => { const s = (Date.now() - L.startedAt) / 1000; const t = $('#timer'); if (t) t.textContent = fmtDur(s); $('#bo-t').textContent = fmtDur(s); uiStatus(); if (!R.notesBusy) maybeNotes(false); }, 1000);
+  R.clock = setInterval(() => { if (!R) return; const s = recSeconds(); const t = $('#timer'); if (t) t.textContent = fmtDur(s); $('#bo-t').textContent = fmtDur(s); uiStatus(); if (!R.notesBusy) maybeNotes(false); }, 1000);
   go('rec');
+}
+function recSeconds(){
+  if (!R) return 0;
+  return Math.max(0, (Date.now() - R.lecture.startedAt - R.pausedMs - (R.paused ? Date.now() - R.pauseStart : 0)) / 1000);
+}
+async function pauseRecording(){
+  if (!R || R.paused || R.finishing) return;
+  R.paused = true; R.pauseStart = Date.now(); uiRecState();
+  try { await R.rec.pause(); } catch {}
+}
+async function resumeRecording(){
+  if (!R || !R.paused || R.finishing) return;
+  R.pausedMs += Date.now() - R.pauseStart; R.paused = false;
+  try { if (R.rec.needRestart){ R.rec.needRestart = false; await R.rec.restart(); } else R.rec.resume(); }
+  catch (e){ toast('Nie udało się wznowić mikrofonu. Kończę i zapisuję to, co jest.', 5000); stopRecording(); return; }
+  uiRecState();
+}
+function markImportant(){
+  if (!R || R.finishing) return;
+  R.marks++; R.lecture.marks = (R.lecture.marks || 0) + 1;
+  R.rec.markImportant();
+  toast(R.paused ? 'Oznaczone. Obejmie pierwsze zdania po wznowieniu' : 'Oznaczone jako ważne: ostatnie ok. 30 sekund');
+  uiStatus();
 }
 async function stopRecording(){
   if (!R || R.finishing) return; R.finishing = true; const L = R.lecture;
   clearInterval(R.clock); $('#blackout').classList.remove('on');
-  L.endedAt = Date.now(); L.durationSec = Math.round((L.endedAt - L.startedAt) / 1000);
+  if (R.paused){ R.pausedMs += Date.now() - R.pauseStart; R.paused = false; }
+  L.endedAt = Date.now(); L.durationSec = Math.round((L.endedAt - L.startedAt - R.pausedMs) / 1000);
   uiFinish('Kończę nagranie…');
   try { await R.rec.stop(); } catch {}
   wakeOff(); pump();
   const t0 = Date.now();
-  while (R.queue.length || R.pumping){ uiFinish('Rozpoznaję ostatnie fragmenty (' + R.queue.length + ')…' + (R.netErr ? '\n' + R.netErr : ''), Date.now() - t0 > 12000); await sleep(400); }
+  while (R.queue.length || R.pumping || R.persisting){ uiFinish('Rozpoznaję ostatnie fragmenty (' + R.queue.length + ')…' + (R.netErr ? '\n' + R.netErr : ''), Date.now() - t0 > 12000); await sleep(400); }
   uiFinish('Dopisuję notatki…');
   while (R.notesBusy) await sleep(300);
   await maybeNotes(true);
   uiFinish('Robię podsumowanie…');
   await summarize(L);
-  const left = transcriptText(L).slice(L.notedChars || 0).trim().length;
-  L.status = left >= 40 ? 'interrupted' : 'done'; await DB.put(L);
+  const left = transcriptText(L).slice(L.notedChars || 0).trim().length, waiting = R.left || 0;
+  L.status = left >= 40 || waiting ? 'interrupted' : 'done'; await DB.put(L);
   const id = L.id; R = null; go('lecture', id);
-  toast(left >= 40 ? 'Zapisane, ale notatki są niepełne' : 'Notatki zapisane w archiwum');
+  toast(waiting ? 'Zapisane. ' + waiting + ' ' + plural(waiting, 'fragment czeka', 'fragmenty czekają', 'fragmentów czeka') + ' w telefonie i wyślę je przy następnym otwarciu' : left >= 40 ? 'Zapisane, ale notatki są niepełne' : 'Notatki zapisane w archiwum', 4500);
 }
+const isStandalone = () => navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+let HIDDEN_AT = 0;
 document.addEventListener('visibilitychange', async () => {
   if (!R || R.finishing) return;
-  if (document.visibilityState === 'visible'){
-    wakeOn(); const ok = await R.rec.resumeIfNeeded();
-    if (!ok){ R.lecture.transcript.push({t:Math.round((Date.now() - R.lecture.startedAt) / 1000), text:'[przerwa w nagraniu – telefon przerwał dostęp do mikrofonu]'}); toast('Mikrofon został przerwany. Kończę i zapisuję to, co jest.', 5000); stopRecording(); }
+  if (document.visibilityState === 'hidden'){ HIDDEN_AT = Date.now(); return; }
+  wakeOn();
+  const away = HIDDEN_AT ? Date.now() - HIDDEN_AT : 0; HIDDEN_AT = 0;
+  const tr = R.rec.stream && R.rec.stream.getAudioTracks()[0];
+  // home-screen apps lose the microphone while hidden; Safari tabs usually keep it
+  const lost = !tr || tr.readyState === 'ended' || tr.muted || (isStandalone() && away > 3000);
+  if (!lost){ await R.rec.resumeIfNeeded(); return; }
+  if (R.paused){ R.rec.needRestart = true; return; }
+  try { await R.rec.restart(); }
+  catch (e){ toast('Nie udało się wznowić mikrofonu. Kończę i zapisuję to, co jest.', 5000); stopRecording(); return; }
+  if (away > 3000){
+    (R.lecture.gaps = R.lecture.gaps || []).push({t:Math.round((Date.now() - away - R.lecture.startedAt) / 1000), sec:Math.round(away / 1000)}); DB.put(R.lecture);
+    toast('Ekran był wyłączony przez ' + fmtDur(away / 1000) + '. iPhone wycisza wtedy mikrofon w aplikacji z ekranu początkowego, więc tego fragmentu nie ma. Nagrywanie trwa dalej', 7000);
   }
 });
 window.addEventListener('beforeunload', e => { if (R){ e.preventDefault(); e.returnValue = ''; } });
+
+let RECOVERING = false;
+async function recoverPending(){
+  if (RECOVERING || R || !CFG.sttKey) return;
+  const all = (await DB.segAll()).sort((a, b) => a.t0 - b.t0 || a.idx - b.idx); if (!all.length) return;
+  RECOVERING = true; let ok = 0, failed = 0;
+  try {
+    toast('Wysyłam ' + all.length + ' ' + plural(all.length, 'zaległy fragment', 'zaległe fragmenty', 'zaległych fragmentów') + ' z przerwanego wykładu', 4000);
+    for (const r of all){
+      if (R) break;
+      const L = LECT.find(l => l.id === r.lid); if (!L){ await DB.segDel(r.key); continue; }
+      const seg = {key:r.key, idx:r.idx, t0:r.t0, t1:r.t1, peak:r.peak, important:r.important, ext:r.ext, blob:new Blob([r.data], {type:r.type || ''})};
+      let text = null;
+      for (let tries = 1; tries <= 2 && text === null; tries++){
+        try { text = await transcribeSeg(seg, L, {}); }
+        catch (e){ if (e.status === 400 || e.status === 413 || e.status === 422){ if (tries === 2){ text = ''; failed++; } } else { RECOVERING = false; return; } }
+      }
+      if (text){ L.transcript.push({t:Math.round((seg.t0 - L.startedAt) / 1000), text}); ok++; }
+      if (L.status !== 'recording') L.status = 'interrupted';
+      await DB.put(L); await DB.segDel(r.key);
+    }
+    if (ok || failed){ toast('Dosłane fragmenty: ' + ok + (failed ? ', nieczytelne: ' + failed : '') + '. Otwórz wykład i dokończ notatki', 5000); if (VIEW.name !== 'rec') render(); }
+  } finally { RECOVERING = false; }
+}
 
 /* ================= markdown ================= */
 function mdBlocks(md){
@@ -624,7 +783,7 @@ function inlineRuns(text){
 }
 const runsHtml = t => inlineRuns(t).map(r => r.b ? '<b>' + esc(r.text) + '</b>' : r.i ? '<i>' + esc(r.text) + '</i>' : esc(r.text)).join('');
 function mdHtml(md){
-  return mdBlocks(md).map(b => b.t === 'h' ? '<h' + b.lvl + '>' + runsHtml(b.text) + '</h' + b.lvl + '>' : b.t === 'hr' ? '<hr>' : b.t === 'li' ? '<div class="li l' + b.lvl + '">' + runsHtml(b.text) + '</div>' : b.t === 'ol' ? '<div class="ol" style="margin-left:' + (b.lvl * 18) + 'px">' + esc(b.n) + '. ' + runsHtml(b.text) + '</div>' : '<p>' + runsHtml(b.text) + '</p>').join('');
+  return mdBlocks(md).map(b => b.t === 'h' ? '<h' + b.lvl + '>' + runsHtml(b.text) + '</h' + b.lvl + '>' : b.t === 'hr' ? '<hr>' : b.t === 'li' ? '<div class="li l' + b.lvl + (/^\*\*Ważne:?\*\*/i.test(b.text) ? ' imp' : '') + '">' + runsHtml(b.text) + '</div>' : b.t === 'ol' ? '<div class="ol" style="margin-left:' + (b.lvl * 18) + 'px">' + esc(b.n) + '. ' + runsHtml(b.text) + '</div>' : '<p>' + runsHtml(b.text) + '</p>').join('');
 }
 function tidyNotes(md){
   const lines = String(md || '').split(/\r?\n/), pre = [], secs = [], byKey = new Map(); let cur = null;
@@ -692,9 +851,9 @@ const fileBase = L => (L.course + (L.topic ? ' - ' + L.topic : '') + ' ' + new D
 async function saveFile(blob, name){
   if (isIOS && navigator.canShare){
     const f = new File([blob], name, {type:blob.type});
-    try { if (navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; } } catch (e){ if (e && e.name === 'AbortError') return; }
+    try { if (navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return true; } } catch (e){ if (e && e.name === 'AbortError') return false; }
   }
-  saveBlob(blob, name);
+  saveBlob(blob, name); return true;
 }
 function saveBlob(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }
 async function shareLecture(L){
@@ -716,31 +875,54 @@ const ICONS = {
   copy:'<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
   moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
   redo:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
-  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2"/>'
+  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2"/>',
+  flag:'<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/>',
+  edit:'<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  cap:'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
+  x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'
 };
 const icon = n => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[n] + '</svg>';
 const stopIcon = '<svg class="ic fill" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+const pauseIcon = '<svg class="ic fill" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>';
+const playIcon = '<svg class="ic fill" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>';
 const plural = (n, one, few, many) => n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? few : many;
 const fmtShort = t => new Date(t).toLocaleDateString('pl-PL', {day:'numeric', month:'short'}) + ', ' + fmtTime(t);
+const fold = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/Ł/g, 'L').toLowerCase();
+const showTr = t => String(t || '').split(IMP_OPEN).join('[ważne]').split(IMP_CLOSE).join('[/ważne]');
 
 let VIEW = {name:'home', arg:null};
+const FILTER = {q:'', course:''};
 function go(name, arg){ VIEW = {name, arg}; render(); window.scrollTo(0, 0); }
 function render(){
   const a = $('#app'); let html;
   if (VIEW.name === 'rec' && R) html = vRec();
   else if (VIEW.name === 'lecture') html = vLecture(LECT.find(l => l.id === VIEW.arg));
+  else if (VIEW.name === 'edit') html = vEdit(LECT.find(l => l.id === VIEW.arg));
+  else if (VIEW.name === 'quiz') html = vQuiz(VIEW.arg);
   else if (VIEW.name === 'settings') html = vSettings();
   else html = vHome();
   a.innerHTML = '<div class="view">' + html + '</div>';
-  if (VIEW.name === 'rec' && R){ uiNotes(); uiTranscript(); uiStatus(); WAVE_COL = null; drawWave(); }
+  if (VIEW.name === 'rec' && R){ uiNotes(); uiTranscript(); uiStatus(); uiRecState(); WAVE_COL = null; drawWave(); }
 }
 
+/* ---------- home ---------- */
+function backupDue(){
+  if (!LECT.length) return null;
+  const last = CFG.lastBackupAt || 0, oldest = Math.min(...LECT.map(l => l.startedAt));
+  const since = last || oldest, fresh = LECT.some(l => l.startedAt > last && l.status !== 'recording');
+  if (!fresh || Date.now() - since < 7 * 86400000 || (CFG.backupSnooze && Date.now() < CFG.backupSnooze)) return null;
+  return last ? 'Ostatnia kopia archiwum: ' + Math.floor((Date.now() - last) / 86400000) + ' dni temu.' : 'Nie masz jeszcze kopii archiwum.';
+}
 function vHome(){
   const courses = Object.keys(CFG.courses), cur = CFG.lastCourse || '';
   const ready = CFG.sttKey && (CFG.llmSame || CFG.llmKey);
   const head = '<header class="top"><span class="brand"><span class="rec-dot" aria-hidden="true"></span>słuch&#39;am</span><button class="icon-btn" data-act="settings" aria-label="Ustawienia">' + icon('settings') + '</button></header>';
+  const hint = isStandalone()
+    ? 'Połóż telefon ekranem do góry, jak najbliżej wykładowcy. Nie blokuj ekranu: w aplikacji z ekranu początkowego iPhone wycisza wtedy mikrofon. Telefon przyciemnisz przyciskiem z księżycem.'
+    : 'Połóż telefon ekranem do góry, jak najbliżej wykładowcy. W Safari nagrywanie zwykle trwa też po zablokowaniu ekranu, ale sprawdź to najpierw na krótkiej próbie.';
   let main;
-  if (R) main = '<section class="panel notice"><div class="rec-head"><span class="rec-dot"></span><b>Nagrywanie trwa: ' + esc(R.lecture.course) + '</b></div><div class="row-btns"><button class="btn pri" data-act="back-rec">Wróć do nagrania</button></div></section>';
+  if (R) main = '<section class="panel notice"><div class="rec-head"><span class="rec-dot"></span><b>' + (R.paused ? 'Pauza: ' : 'Nagrywanie trwa: ') + esc(R.lecture.course) + '</b></div><div class="row-btns"><button class="btn pri" data-act="back-rec">Wróć do nagrania</button></div></section>';
   else if (!ready) main = '<section class="panel notice"><h2 class="panel-title">Połącz z usługą transkrypcji</h2><p>Aplikacja potrzebuje klucza API, żeby zamieniać mowę na tekst i pisać notatki. Wpisujesz go raz, zostaje tylko w tym telefonie.</p><div class="row-btns"><button class="btn pri" data-act="settings">Dodaj klucz API</button></div></section>';
   else main = '<section class="panel">' +
     '<label class="lbl first" for="course">Przedmiot</label>' +
@@ -748,34 +930,67 @@ function vHome(){
     '<datalist id="courses">' + courses.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>' +
     '<details class="hints"><summary>' + icon('next') + 'Słowa kluczowe dla transkrypcji</summary><textarea id="hints" placeholder="Zimmermann, k.p.a., decyzja administracyjna, WSA">' + esc((CFG.courses[cur] || {}).hints || '') + '</textarea><p class="help">Nazwiska, skróty i terminy, które mogą paść na wykładzie. Zapamiętuję je osobno dla każdego przedmiotu.</p></details>' +
     '<button class="btn-rec" data-act="start"><span class="w" aria-hidden="true"></span>Zacznij słuchać</button>' +
-    '<p class="help">Połóż telefon ekranem do góry, jak najbliżej wykładowcy. Ekran musi zostać włączony, a ta strona na wierzchu.</p></section>';
-  const list = LECT.length
-    ? '<div class="list">' + LECT.map(l => {
-        const live = R && R.lecture.id === l.id, partial = l.status !== 'done' && !live;
-        const title = l.topic || l.course;
-        const meta = [l.topic ? esc(l.course) : '', esc(fmtShort(l.startedAt)), l.durationSec ? '<span class="num">' + fmtDur(l.durationSec) + '</span>' : '', live ? 'nagrywanie' : partial ? '<span class="state">niepełne</span>' : ''].filter(Boolean).join(' · ');
-        return '<button class="entry" data-act="' + (live ? 'back-rec' : 'open') + '" data-id="' + esc(l.id) + '"><div class="entry-main"><div class="entry-title">' + (live ? '<i class="rec-dot" aria-hidden="true"></i>' : '') + '<span>' + esc(title) + '</span></div><div class="entry-meta">' + meta + '</div></div>' + icon('next') + '</button>';
-      }).join('') + '</div>'
-    : '<div class="list"><p class="empty">Tu trafią notatki z każdego wykładu, z podsumowaniem i pełną transkrypcją.</p></div>';
-  return head + main + '<div class="sec-head"><h2>Archiwum</h2>' + (LECT.length ? '<span class="count">' + LECT.length + '</span>' : '') + '</div>' + list;
+    '<p class="help">' + hint + '</p></section>';
+  const due = !R && backupDue();
+  const backup = due ? '<section class="panel notice tight"><p>' + esc(due) + ' Safari może wyczyścić dane aplikacji, jeśli długo jej nie otwierasz.</p><div class="row-btns"><button class="btn sec sm" data-act="export">' + icon('download') + 'Pobierz kopię</button><button class="btn ghost sm" data-act="snooze">Później</button></div></section>' : '';
+  const lectCourses = [...new Set(LECT.map(l => l.course))];
+  const tools = LECT.length ? '<div class="arch-tools"><label class="search">' + icon('search') + '<input id="q" type="search" placeholder="Szukaj w notatkach" value="' + esc(FILTER.q) + '" autocomplete="off" enterkeyhint="search"></label>' +
+    (lectCourses.length > 1 ? '<div class="chips" role="tablist"><button class="chip' + (!FILTER.course ? ' on' : '') + '" data-act="fcourse" data-c="">Wszystkie</button>' + lectCourses.map(c => '<button class="chip' + (FILTER.course === c ? ' on' : '') + '" data-act="fcourse" data-c="' + esc(c) + '">' + esc(c) + '</button>').join('') + '</div>' : '') + '</div>' : '';
+  return head + main + backup + '<div class="sec-head"><h2>Archiwum</h2>' + (LECT.length ? '<span class="count" id="acount">' + LECT.length + '</span>' : '') + '</div>' + tools + '<div id="arch">' + archiveHtml() + '</div>';
+}
+function snippet(text, q){
+  const f = fold(text), i = f.indexOf(q); if (i < 0) return '';
+  let a = Math.max(0, i - 40), b = Math.min(text.length, i + q.length + 60);
+  if (a > 0){ const sp = text.indexOf(' ', a); if (sp > -1 && sp < i) a = sp + 1; }
+  return (a ? '…' : '') + esc(text.slice(a, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length, b)) + (b < text.length ? '…' : '');
+}
+function archiveHtml(){
+  if (!LECT.length) return '<div class="list"><p class="empty">Tu trafią notatki z każdego wykładu, z podsumowaniem i pełną transkrypcją.</p></div>';
+  const q = fold(FILTER.q.trim());
+  const rows = LECT.filter(l => !FILTER.course || l.course === FILTER.course).map(l => {
+    if (!q) return {l};
+    const plain = t => String(t || '').replace(/^\s{0,3}#{1,4}\s*/gm, '').replace(/\*\*|__/g, '').replace(/^\s*[-*•–]\s+/gm, '').replace(/\s+/g, ' ').trim();
+    const fields = [l.topic, l.course, plain(l.summary), plain(l.notes), showTr(transcriptText(l))];
+    const hit = fields.find(x => fold(x).includes(q)); return hit === undefined ? null : {l, snip:snippet(String(hit), q)};
+  }).filter(Boolean);
+  const c = $('#acount'); if (c) c.textContent = rows.length === LECT.length ? LECT.length : rows.length + ' z ' + LECT.length;
+  const quiz = FILTER.course ? '<button class="btn sec quiz-course" data-act="quiz" data-kind="course" data-c="' + esc(FILTER.course) + '">' + icon('cap') + 'Powtórka z przedmiotu</button>' : '';
+  if (!rows.length) return quiz + '<div class="list"><p class="empty">Nic nie pasuje do wyszukiwania.</p></div>';
+  return quiz + '<div class="list">' + rows.map(({l, snip}) => {
+    const live = R && R.lecture.id === l.id, partial = l.status !== 'done' && !live;
+    const meta = [l.topic ? esc(l.course) : '', esc(fmtShort(l.startedAt)), l.durationSec ? '<span class="num">' + fmtDur(l.durationSec) + '</span>' : '', live ? 'nagrywanie' : partial ? '<span class="state">niepełne</span>' : ''].filter(Boolean).join(' · ');
+    return '<button class="entry" data-act="' + (live ? 'back-rec' : 'open') + '" data-id="' + esc(l.id) + '"><div class="entry-main"><div class="entry-title">' + (live ? '<i class="rec-dot" aria-hidden="true"></i>' : '') + '<span>' + esc(l.topic || l.course) + '</span></div><div class="entry-meta">' + meta + '</div>' + (snip ? '<div class="entry-snip">' + snip + '</div>' : '') + '</div>' + icon('next') + '</button>';
+  }).join('') + '</div>';
 }
 
+/* ---------- recording ---------- */
 function vRec(){
   const L = R.lecture;
-  return '<header class="top"><div class="rec-head"><span class="rec-dot" aria-hidden="true"></span><b>' + esc(L.course) + '</b></div></header>' +
-    '<section class="panel"><div class="mute">Nagrywanie</div><div class="timer" id="timer">' + fmtDur((Date.now() - L.startedAt) / 1000) + '</div><canvas id="wave" class="wave" aria-hidden="true"></canvas><div class="status" id="status"></div></section>' +
+  return '<header class="top"><div class="rec-head" id="rhead"><span class="rec-dot" aria-hidden="true"></span><b>' + esc(L.course) + '</b></div><button class="icon-btn" data-act="blackout" aria-label="Wygaś ekran">' + icon('moon') + '</button></header>' +
+    '<section class="panel"><div class="mute" id="rlabel">Nagrywanie</div><div class="timer" id="timer">' + fmtDur(recSeconds()) + '</div><canvas id="wave" class="wave" aria-hidden="true"></canvas><div class="status" id="status"></div>' +
+    '<button class="btn sec mark" data-act="mark">' + icon('flag') + 'Oznacz jako ważne</button></section>' +
     '<div class="seg" role="tablist"><button role="tab" data-act="tab" data-tab="notes" class="' + (R.tab === 'notes' ? 'on' : '') + '">Notatki</button><button role="tab" data-act="tab" data-tab="tr" class="' + (R.tab === 'tr' ? 'on' : '') + '">Transkrypcja</button></div>' +
     '<section class="panel"><div id="notes" class="md"' + (R.tab === 'notes' ? '' : ' hidden') + '></div><div id="tr" class="tr"' + (R.tab === 'tr' ? '' : ' hidden') + '></div></section>' +
-    '<div class="dock" id="bar"><button class="btn sec" data-act="blackout">' + icon('moon') + 'Wygaś ekran</button><button class="btn pri" data-act="stop">' + stopIcon + 'Zakończ</button></div>';
+    '<div class="dock" id="bar"><button class="btn sec" id="pausebtn" data-act="pause">' + pauseIcon + 'Pauza</button><button class="btn pri" data-act="stop">' + stopIcon + 'Zakończ</button></div>';
 }
-function uiNotes(){ const n = $('#notes'); if (!n || !R) return; n.innerHTML = R.lecture.notes ? mdHtml(R.lecture.notes) : '<p class="placeholder">Pierwsze notatki pojawią się po około ' + CFG.notesEveryMin + ' min słuchania.</p>'; }
-function uiTranscript(){ const t = $('#tr'); if (!t || !R) return; t.textContent = transcriptText(R.lecture) || 'Pierwszy fragment pojawi się po około pół minuty.'; }
+function uiRecState(){
+  if (!R || R.finishing) return;
+  const b = $('#pausebtn'), l = $('#rlabel'), h = $('#rhead');
+  if (b){ b.dataset.act = R.paused ? 'resume' : 'pause'; b.innerHTML = R.paused ? playIcon + 'Wznów' : pauseIcon + 'Pauza'; b.classList.toggle('pri-soft', R.paused); }
+  const st = document.querySelector('#bar [data-act=stop]'); if (st){ st.classList.toggle('pri', !R.paused); st.classList.toggle('sec', R.paused); }
+  if (l) l.textContent = R.paused ? 'Pauza' : 'Nagrywanie';
+  if (h) h.classList.toggle('paused', R.paused);
+}
+function uiNotes(){ const n = $('#notes'); if (!n || !R) return; n.innerHTML = R.lecture.notes ? mdHtml(tidyNotes(R.lecture.notes)) : '<p class="placeholder">Pierwsze notatki pojawią się po około ' + CFG.notesEveryMin + ' min słuchania.</p>'; }
+function uiTranscript(){ const t = $('#tr'); if (!t || !R) return; t.textContent = showTr(transcriptText(R.lecture)) || 'Pierwszy fragment pojawi się po około pół minuty.'; }
 function uiStatus(){
   const s = $('#status'); if (!s || !R) return;
   const parts = [R.done + ' ' + plural(R.done, 'fragment', 'fragmenty', 'fragmentów')];
   if (R.queue.length) parts.push(R.queue.length + ' w kolejce');
+  if (R.marks) parts.push(R.marks + ' ' + plural(R.marks, 'oznaczony', 'oznaczone', 'oznaczonych'));
   if (R.failed) parts.push(R.failed + ' ' + plural(R.failed, 'pominięty', 'pominięte', 'pominiętych'));
   if (R.notesBusy) parts.push('piszę notatki');
+  else if (R.paused) parts.push('pauza');
   else if (!R.finishing){
     const every = (dbg().notesEverySec || CFG.notesEveryMin * 60) * 1000, left = every - (Date.now() - R.lastNotesAt);
     parts.push(left > 60000 ? 'notatki za ok. ' + Math.ceil(left / 60000) + ' min' : 'notatki za chwilę');
@@ -801,30 +1016,82 @@ function drawWave(){
     const end = WAVE.length - (n - 1 - i) * per; if (end <= 0) continue;
     let v = 0; for (let k = Math.max(0, end - per); k < end; k++) v = Math.max(v, WAVE[k]);
     const bh = Math.max(2, Math.round(v * (h - 4)));
-    x.fillStyle = i === n - 1 ? WAVE_COL.hot : WAVE_COL.base;
+    x.fillStyle = i === n - 1 && !(R && R.paused) ? WAVE_COL.hot : WAVE_COL.base;
     const px = i * (bw + gap), py = Math.round(mid - bh / 2);
     if (x.roundRect){ x.beginPath(); x.roundRect(px, py, bw, bh, 1.5); x.fill(); } else x.fillRect(px, py, bw, bh);
   }
 }
 window.addEventListener('resize', () => { WAVE_COL = null; drawWave(); });
 
+/* ---------- lecture ---------- */
 function vLecture(L){
   if (!L) return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button></header><p class="mute">Nie ma takiego wykładu.</p>';
   const tr = transcriptText(L), unfinished = L.status !== 'done';
+  const gaps = (L.gaps || []), gapSec = gaps.reduce((a, g) => a + g.sec, 0);
   const meta = [fmtDate(L.startedAt), fmtTime(L.startedAt), L.durationSec ? fmtDur(L.durationSec) : ''].filter(Boolean).join(' · ');
-  return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button></header>' +
+  return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button><button class="icon-btn" data-act="edit" data-id="' + esc(L.id) + '" aria-label="Edytuj notatki">' + icon('edit') + '</button></header>' +
     (unfinished ? '<section class="panel notice"><h2 class="panel-title">Notatki są niepełne</h2><p>Nagranie zostało przerwane albo nie wszystko zdążyło się przetworzyć. Transkrypcja jest zapisana, więc notatki można z niej dokończyć.</p><div class="row-btns"><button class="btn pri" data-act="finish" data-id="' + esc(L.id) + '">Dokończ notatki</button></div></section>' : '') +
     '<article class="paper">' +
       (L.topic ? '<div class="eyebrow">' + esc(L.course) + '</div>' : '') +
       '<h1 class="doc-title">' + esc(L.topic || L.course) + '</h1>' +
-      '<div class="doc-meta">' + esc(meta) + '</div>' +
+      '<div class="doc-meta">' + esc(meta) + (L.marks ? ' · ' + L.marks + ' ' + plural(L.marks, 'oznaczenie', 'oznaczenia', 'oznaczeń') : '') + '</div>' +
+      (gaps.length ? '<div class="gap-note">Przerwy w nagraniu: ' + gaps.length + ' (razem ' + fmtDur(gapSec) + '). Ekran był wtedy zablokowany albo aplikacja w tle.</div>' : '') +
       '<div class="doc-actions"><button class="btn pri sm" data-act="share" data-id="' + esc(L.id) + '">' + icon('share') + 'Udostępnij</button><button class="btn sec sm" data-act="docx" data-id="' + esc(L.id) + '">' + icon('download') + 'Word</button><button class="btn sec sm" data-act="copy" data-id="' + esc(L.id) + '">' + icon('copy') + 'Kopiuj</button></div>' +
       (L.summary ? '<div class="summary md">' + mdHtml(L.summary) + '</div>' : '') +
       '<div class="md">' + (L.notes ? mdHtml(tidyNotes(L.notes)) : '<p class="placeholder">Brak notatek.</p>') + '</div>' +
       (L.summaryErr && !L.summary ? '<p class="err">Podsumowanie się nie udało: ' + esc(L.summaryErr) + '</p>' : '') +
     '</article>' +
-    '<details class="panel"><summary>' + icon('next') + 'Pełna transkrypcja <span class="count">' + Math.max(1, Math.round(tr.length / 1000)) + ' tys. znaków</span></summary><div class="tr">' + esc(tr) + '</div></details>' +
-    '<div class="quiet"><button class="btn ghost sm" data-act="redo" data-id="' + esc(L.id) + '">' + icon('redo') + 'Napisz notatki od nowa</button><button class="btn ghost sm danger" data-act="del" data-id="' + esc(L.id) + '">' + icon('trash') + 'Usuń</button></div><div id="msg" class="mute"></div>';
+    (L.notes ? '<button class="btn sec wide" data-act="quiz" data-kind="lecture" data-id="' + esc(L.id) + '">' + icon('cap') + (L.quiz ? 'Pytania do powtórki (' + L.quiz.items.length + ')' : 'Pytania do powtórki') + '</button>' : '') +
+    '<details class="panel"><summary>' + icon('next') + 'Pełna transkrypcja <span class="count">' + Math.max(1, Math.round(tr.length / 1000)) + ' tys. znaków</span></summary><div class="tr">' + esc(showTr(tr)) + '</div></details>' +
+    '<div class="quiet"><button class="btn ghost sm" data-act="edit" data-id="' + esc(L.id) + '">' + icon('edit') + 'Edytuj</button><button class="btn ghost sm" data-act="redo" data-id="' + esc(L.id) + '">' + icon('redo') + 'Napisz od nowa</button><button class="btn ghost sm danger" data-act="del" data-id="' + esc(L.id) + '">' + icon('trash') + 'Usuń</button></div><div id="msg" class="mute"></div>';
+}
+function vEdit(L){
+  if (!L) return vLecture(L);
+  return '<header class="top"><button class="back" data-act="open" data-id="' + esc(L.id) + '">' + icon('back') + 'Anuluj</button><button class="btn pri sm" data-act="saveedit" data-id="' + esc(L.id) + '">Zapisz</button></header>' +
+    '<h1 class="page-title">Edycja notatek</h1>' +
+    '<section class="panel"><label class="lbl first" for="e-topic">Temat</label><input id="e-topic" value="' + esc(L.topic || '') + '" placeholder="Temat wykładu">' +
+    '<label class="lbl" for="e-sum">Podsumowanie</label><textarea id="e-sum" class="edit-area short">' + esc(L.summary || '') + '</textarea>' +
+    '<label class="lbl" for="e-notes">Notatki</label><textarea id="e-notes" class="edit-area">' + esc(L.notes ? tidyNotes(L.notes) : '') + '</textarea>' +
+    '<p class="help">## na początku linii to nagłówek, - to punkt, **tekst** to pogrubienie. „Napisz od nowa” zastąpi Twoje poprawki nowymi notatkami.</p></section>';
+}
+
+/* ---------- review questions ---------- */
+function quizTarget(arg){
+  if (!arg) return null;
+  if (arg.kind === 'lecture'){ const L = LECT.find(l => l.id === arg.id); return L && {title:L.topic || L.course, sub:L.topic ? L.course : fmtDate(L.startedAt), store:L, back:{act:'open', id:L.id}, save:() => DB.put(L)}; }
+  const c = arg.course, cc = CFG.courses[c] = CFG.courses[c] || {};
+  return {title:c, sub:'Powtórka z przedmiotu', store:cc, back:{act:'home'}, save:() => saveCfg()};
+}
+function vQuiz(arg){
+  const T = quizTarget(arg); if (!T) return vHome();
+  const q = T.store.quiz, backBtn = '<button class="back" data-act="' + T.back.act + '"' + (T.back.id ? ' data-id="' + esc(T.back.id) + '"' : '') + '>' + icon('back') + 'Wróć</button>';
+  const body = q && q.items.length
+    ? '<div class="qlist">' + q.items.map((it, i) => '<details class="qcard"><summary><span class="qn">' + (i + 1) + '</span><span>' + esc(it.q) + '</span></summary><div class="qa">' + esc(it.a) + '</div></details>').join('') + '</div>' +
+      '<p class="help">Stuknij pytanie, żeby zobaczyć odpowiedź. Pytania powstały tylko z notatek, więc mają te same ograniczenia co notatki.</p>' +
+      '<div class="row-btns" style="margin-top:12px"><button class="btn sec sm" data-act="quizdocx">' + icon('download') + 'Word</button><button class="btn ghost sm" data-act="quizgen">' + icon('redo') + 'Nowe pytania</button></div>'
+    : '<section class="panel notice"><p>Ułożę ' + (arg.kind === 'course' ? '15' : '10') + ' pytań z odpowiedziami na podstawie ' + (arg.kind === 'course' ? 'notatek ze wszystkich wykładów z tego przedmiotu' : 'notatek z tego wykładu') + '. Zużywa to trochę dziennego limitu notatek.</p><div class="row-btns"><button class="btn pri" data-act="quizgen">' + icon('cap') + 'Ułóż pytania</button></div></section>';
+  return '<header class="top">' + backBtn + '</header><div class="eyebrow">' + esc(T.sub) + '</div><h1 class="page-title" style="margin-top:4px">' + esc(T.title) + '</h1>' + body + '<div id="msg" class="mute" style="margin-top:12px"></div>';
+}
+const SYS_QUIZ = `Na podstawie notatek z wykładu ułóż pytania do powtórki przed egzaminem. Korzystaj wyłącznie z notatek: nie dodawaj faktów spoza nich. Pytania mają sprawdzać zrozumienie najważniejszych tez, definicji, podziałów i przykładów; punkty oznaczone „Ważne:” uwzględnij w pierwszej kolejności. Odpowiedź ma mieć 1–3 zdania i wynikać wprost z notatek. Pisz po polsku. Zwróć wyłącznie JSON w postaci {"items":[{"q":"pytanie","a":"odpowiedź"}]}, bez żadnego innego tekstu.`;
+async function makeQuiz(arg){
+  const T = quizTarget(arg), msg = $('#msg') || {};
+  const n = arg.kind === 'course' ? 15 : 10;
+  let src;
+  if (arg.kind === 'lecture') src = tidyNotes(T.store.notes || '');
+  else src = LECT.filter(l => l.course === arg.course && l.notes).sort((a, b) => a.startedAt - b.startedAt).map(l => '## Wykład ' + fmtDate(l.startedAt) + (l.topic ? ': ' + l.topic : '') + '\n' + tidyNotes(l.notes).replace(/^##/gm, '###')).join('\n\n');
+  if (!src.trim()){ msg.textContent = 'Brak notatek, z których można ułożyć pytania.'; return; }
+  msg.className = 'mute'; msg.textContent = 'Układam pytania…';
+  try {
+    const out = await chat(SYS_QUIZ, 'Liczba pytań: ' + n + '\n\nNotatki:\n"""\n' + condenseNotes(src, 10000) + '\n"""', sec => { msg.textContent = 'Układam pytania… Czekam ' + sec + ' s na limit Groq'; });
+    const a = out.indexOf('{'), b = out.lastIndexOf('}');
+    const items = (JSON.parse(out.slice(a, b + 1)).items || []).filter(x => x && x.q && x.a).map(x => ({q:String(x.q).trim(), a:String(x.a).trim()})).slice(0, 20);
+    if (!items.length) throw new Error('Model nie zwrócił pytań. Spróbuj jeszcze raz.');
+    T.store.quiz = {at:Date.now(), items}; await T.save(); render();
+  } catch (e){ const m = $('#msg'); if (m){ m.className = 'err'; m.textContent = 'Nie udało się: ' + (e instanceof SyntaxError ? 'odpowiedź modelu była nieczytelna. Spróbuj jeszcze raz.' : e.message); } }
+}
+function quizMd(arg){
+  const T = quizTarget(arg), q = T.store.quiz;
+  return '# Powtórka: ' + T.title + '\n\n*' + T.sub + '*\n\n' + q.items.map((it, i) => '## ' + (i + 1) + '. ' + it.q + '\n' + it.a).join('\n\n');
 }
 
 function vSettings(){
@@ -840,7 +1107,7 @@ function vSettings(){
     '<label class="lbl" for="amode">Format dźwięku</label><select id="amode"><option value="auto"' + (CFG.audioMode === 'auto' ? ' selected' : '') + '>Automatyczny</option><option value="mr"' + (CFG.audioMode === 'mr' ? ' selected' : '') + '>Skompresowany, mniej danych</option><option value="wav"' + (CFG.audioMode === 'wav' ? ' selected' : '') + '>WAV, awaryjny (ok. 2 MB na minutę)</option></select>' +
     '<details style="margin-top:12px"><summary>' + icon('next') + 'Inny dostawca do notatek</summary><label class="check"><input type="checkbox" id="llmSame"' + (CFG.llmSame ? ' checked' : '') + '>Ten sam klucz i adres co transkrypcja</label><label class="lbl" for="llmBase">Adres API zgodny z OpenAI</label><input id="llmBase" value="' + esc(CFG.llmBase) + '" placeholder="https://openrouter.ai/api/v1" autocapitalize="off" spellcheck="false"><label class="lbl" for="llmKey">Klucz</label><input id="llmKey" type="password" value="' + esc(CFG.llmKey) + '" autocomplete="off" autocapitalize="off" spellcheck="false"></details>' +
     '<div class="row-btns" style="margin-top:20px"><button class="btn sec" data-act="savecfg">Zapisz</button></div></section>' +
-    '<section class="panel"><h2 class="panel-title">Kopia archiwum</h2><p class="help" style="margin-top:0">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj od razu, a co jakiś czas zrób kopię.</p><div class="row-btns" style="margin-top:16px"><button class="btn sec sm" data-act="export">' + icon('download') + 'Pobierz kopię</button><button class="btn sec sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></section>';
+    '<section class="panel"><h2 class="panel-title">Kopia archiwum</h2><p class="help" style="margin-top:0">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj od razu, a co jakiś czas zrób kopię. Aplikacja przypomni o niej po tygodniu.</p><div class="row-btns" style="margin-top:16px"><button class="btn sec sm" data-act="export">' + icon('download') + 'Pobierz kopię</button><button class="btn sec sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></section>';
 }
 
 function readSettingsForm(){
@@ -891,6 +1158,19 @@ document.addEventListener('click', async ev => {
   else if (act === 'back-rec') go('rec');
   else if (act === 'start'){ b.disabled = true; await startRecording($('#course').value, ($('#hints') || {}).value); b.disabled = false; }
   else if (act === 'stop') stopRecording();
+  else if (act === 'pause') pauseRecording();
+  else if (act === 'resume') resumeRecording();
+  else if (act === 'mark') markImportant();
+  else if (act === 'edit' && L) go('edit', L.id);
+  else if (act === 'saveedit' && L){
+    L.topic = $('#e-topic').value.trim(); L.summary = $('#e-sum').value.trim(); L.notes = $('#e-notes').value.trim(); L.edited = Date.now();
+    await DB.put(L); go('lecture', L.id); toast('Zapisane');
+  }
+  else if (act === 'quiz') go('quiz', b.dataset.kind === 'course' ? {kind:'course', course:b.dataset.c} : {kind:'lecture', id:b.dataset.id});
+  else if (act === 'quizgen'){ b.disabled = true; await makeQuiz(VIEW.arg); b.disabled = false; }
+  else if (act === 'quizdocx'){ const T = quizTarget(VIEW.arg); saveFile(buildDocx(quizMd(VIEW.arg)), ('Powtórka - ' + T.title).replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 80) + '.docx'); }
+  else if (act === 'fcourse'){ FILTER.course = b.dataset.c; document.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x.dataset.c === FILTER.course)); $('#arch').innerHTML = archiveHtml(); }
+  else if (act === 'snooze'){ CFG.backupSnooze = Date.now() + 3 * 86400000; saveCfg(); render(); }
   else if (act === 'skipq'){ if (R) R.dropQueue = true; }
   else if (act === 'blackout') $('#blackout').classList.add('on');
   else if (act === 'tab'){ R.tab = b.dataset.tab; $('#notes').hidden = R.tab !== 'notes'; $('#tr').hidden = R.tab !== 'tr'; document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x.dataset.tab === R.tab)); }
@@ -903,20 +1183,24 @@ document.addEventListener('click', async ev => {
   else if (act === 'redo' && L){ if (confirm('Napisać notatki od nowa z zapisanej transkrypcji?')) finishLecture(L, true); }
   else if (act === 'test') testConn();
   else if (act === 'savecfg'){ readSettingsForm(); toast('Zapisane'); }
-  else if (act === 'export') saveFile(new Blob([JSON.stringify({app:'slucham', v:1, lectures:LECT})], {type:'application/json'}), 'slucham-archiwum-' + new Date().toISOString().slice(0, 10) + '.json');
+  else if (act === 'export'){
+    const ok = await saveFile(new Blob([JSON.stringify({app:'slucham', v:1, lectures:LECT, courses:CFG.courses})], {type:'application/json'}), 'slucham-archiwum-' + new Date().toISOString().slice(0, 10) + '.json');
+    if (ok){ CFG.lastBackupAt = Date.now(); CFG.backupSnooze = 0; saveCfg(); if (VIEW.name === 'home') render(); }
+  }
   else if (act === 'import') $('#impf').click();
 });
 document.addEventListener('change', async ev => {
   if (ev.target.id === 'impf' && ev.target.files[0]){
-    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } sortLect(); toast('Wczytano wykładów: ' + n); }
+    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } if (j.courses && typeof j.courses === 'object'){ for (const [k, v] of Object.entries(j.courses)) CFG.courses[k] = Object.assign({}, v, CFG.courses[k] || {}); saveCfg(); } sortLect(); toast('Wczytano wykładów: ' + n); }
     catch { toast('To nie jest plik kopii archiwum.'); }
   }
   if (ev.target.id === 'course'){ const h = $('#hints'); if (h) h.value = (CFG.courses[ev.target.value.trim()] || {}).hints || ''; }
 });
+document.addEventListener('input', ev => { if (ev.target.id === 'q'){ FILTER.q = ev.target.value; const a = $('#arch'); if (a) a.innerHTML = archiveHtml(); } });
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.10';
+const APP_VERSION = '2026-11-27.11';
 async function checkUpdate(){
   if (R) return;
   try {
@@ -930,7 +1214,7 @@ async function checkUpdate(){
     location.replace(location.pathname + '?v=' + encodeURIComponent(v) + location.hash);
   } catch {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !R) checkUpdate(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !R){ checkUpdate(); recoverPending(); } });
 
 /* ================= boot ================= */
 (async () => {
@@ -941,6 +1225,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   }
   render();
   checkUpdate();
+  recoverPending();
 })();
 window.__slucham = {buildDocx, mdBlocks, mdHtml, cleanText, encodeWav, downTo16k, lectureMd, mdPlain, zipStore, crc32};
 </script>

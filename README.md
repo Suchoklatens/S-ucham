@@ -9,6 +9,17 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 - Klucz API wpisuje się w ustawieniach aplikacji. Zostaje tylko w przeglądarce na telefonie i nie trafia do tego repozytorium.
 - Archiwum wykładów leży w pamięci przeglądarki (IndexedDB). Ważne notatki warto pobierać od razu, a w ustawieniach co jakiś czas robić kopię archiwum.
 
+## Funkcje
+
+- Pauza i wznowienie nagrania w tym samym wykładzie.
+- Przycisk „Oznacz jako ważne”: ostatnie ok. 30 sekund trafia do notatek jako punkt **Ważne:**.
+- Niewysłane fragmenty nagrania są zapisywane w telefonie i wysyłane po ponownym otwarciu aplikacji (brak sieci, zamknięta karta).
+- Trzy modele notatek na darmowym planie Groq: po wyczerpaniu dziennego limitu jednego notatki pisze następny.
+- Ręczna edycja tematu, podsumowania i notatek.
+- Wyszukiwarka w całym archiwum i filtr po przedmiocie.
+- Pytania do powtórki z jednego wykładu albo z całego przedmiotu, z eksportem do Word.
+- Przypomnienie o kopii archiwum po tygodniu.
+
 ## Pierwsze uruchomienie
 
 1. Załóż klucz na https://console.groq.com/keys.
@@ -18,5 +29,6 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 
 ## Ograniczenia na iPhonie
 
-- Podczas nagrywania ekran musi być włączony, a strona na wierzchu. Aplikacja blokuje wygaszanie ekranu i ma przycisk „Wygaś ekran”, który zaciemnia go do czerni.
+- W aplikacji dodanej do ekranu początkowego iPhone wycisza mikrofon po zablokowaniu ekranu. Aplikacja po odblokowaniu sama wznawia nagrywanie tego samego wykładu i zaznacza przerwę, ale tego fragmentu nie ma. Dlatego nie blokuj ekranu; przycisk z księżycem zaciemnia go do czerni.
+- W zwykłej karcie Safari nagrywanie zwykle trwa też przy zablokowanym ekranie (według zgłoszeń w WebKit); warto to sprawdzić krótką próbą.
 - Telefon potrzebuje internetu przez cały wykład. Fragmenty, których nie udało się wysłać, czekają w kolejce i są ponawiane.
