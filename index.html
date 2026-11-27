@@ -205,9 +205,10 @@ function dbg(){ try { return JSON.parse(localStorage.getItem('slucham_debug') ||
 const DEF = {
   sttBase:'https://api.groq.com/openai/v1', sttKey:'', sttModel:'whisper-large-v3',
   llmSame:true, llmBase:'', llmKey:'', llmModel:'openai/gpt-oss-120b',
-  lang:'pl', notesEveryMin:3, audioMode:'auto', courses:{}, lastCourse:'', keyOk:false
+  lang:'pl', notesEveryMin:5, audioMode:'auto', courses:{}, lastCourse:'', keyOk:false
 };
 let CFG = (() => { try { return Object.assign({}, DEF, JSON.parse(localStorage.getItem('slucham_cfg') || '{}')); } catch { return Object.assign({}, DEF); } })();
+if (!CFG.migr5){ if (CFG.notesEveryMin === 3) CFG.notesEveryMin = 5; CFG.migr5 = true; try { localStorage.setItem('slucham_cfg', JSON.stringify(CFG)); } catch {} }
 function saveCfg(){ try { localStorage.setItem('slucham_cfg', JSON.stringify(CFG)); } catch {} }
 
 /* ================= storage (IndexedDB, memory fallback) ================= */
@@ -259,9 +260,14 @@ async function paceTokens(need, onWait){
     await sleep(Math.min(waitMs, 5000));
   }
 }
+const FALLBACK_MODEL = {'openai/gpt-oss-120b':'openai/gpt-oss-20b'};
+function activeModel(primary){
+  const fb = FALLBACK_MODEL[primary];
+  return fb && CFG.fbUntil && Date.now() < CFG.fbUntil && CFG.fbFor === primary ? fb : primary;
+}
 async function chat(system, user, onWait){
   const c = llmConf();
-  const body = {model:c.model, messages:[{role:'system', content:system}, {role:'user', content:user}], temperature:0.2};
+  const body = {model:activeModel(c.model), messages:[{role:'system', content:system}, {role:'user', content:user}], temperature:0.2};
   if (/gpt-oss/i.test(c.model)) body.reasoning_effort = 'low';
   const need = estTokens(system + user);
   let tries = 0, j;
@@ -279,14 +285,22 @@ async function chat(system, user, onWait){
         const w = Math.max(e.retryAfter || 0, 5) + 1;
         onWait && onWait(Math.ceil(w)); await sleep(w * 1000); continue;
       }
-      if (e.status === 429 && e.daily) e.message = 'Wyczerpany dzienny limit notatek w Groq. Transkrypcja jest zapisana, notatki dokończysz po odnowieniu limitu albo z innym modelem w ustawieniach.';
+      if (e.status === 429 && e.daily && body.model === c.model && FALLBACK_MODEL[c.model]){
+        CFG.fbFor = c.model; CFG.fbUntil = Date.now() + Math.max(waitFromMsg(e.message) * 1000, 15 * 60000); saveCfg();
+        body.model = FALLBACK_MODEL[c.model]; tries = 0;
+        toast('Główny model wyczerpał dzienny limit. Notatki pisze teraz model zapasowy', 4000);
+        continue;
+      }
+      if (e.status === 429 && e.daily) e.message = (body.model !== c.model ? 'Wyczerpany dzienny limit obu modeli notatek w Groq.' : 'Wyczerpany dzienny limit notatek w Groq.') + ' Transkrypcja jest zapisana, notatki dokończysz po odnowieniu limitu albo z innym modelem w ustawieniach.';
       throw e;
     }
   }
   let t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '';
   if (Array.isArray(t)) t = t.map(p => p.text || '').join('');
+  LAST_MODEL = body.model;
   return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
 }
+let LAST_MODEL = '';
 
 /* ================= transcription ================= */
 const HALLU = [
@@ -895,7 +909,7 @@ document.addEventListener('change', async ev => {
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.8';
+const APP_VERSION = '2026-11-27.9';
 async function checkUpdate(){
   if (R) return;
   try {
