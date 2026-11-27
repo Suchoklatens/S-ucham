@@ -817,11 +817,29 @@ document.addEventListener('change', async ev => {
 });
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
+/* ================= updates ================= */
+const APP_VERSION = '2026-11-27.4';
+async function checkUpdate(){
+  if (R) return;
+  try {
+    const r = await fetch('version.json?t=' + Date.now(), {cache:'no-store'});
+    if (!r.ok) return;
+    const v = String((await r.json()).version || '');
+    if (!v || v === APP_VERSION || R) return;
+    const seen = sessionStorage.getItem('slucham_upd');
+    if (seen === v) return;
+    sessionStorage.setItem('slucham_upd', v);
+    location.replace(location.pathname + '?v=' + encodeURIComponent(v) + location.hash);
+  } catch {}
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && !R) checkUpdate(); });
+
 /* ================= boot ================= */
 (async () => {
   await DB.open(); LECT = await DB.all(); sortLect();
   for (const l of LECT) if (l.status === 'recording'){ l.status = 'interrupted'; DB.put(l); }
   render();
+  checkUpdate();
 })();
 window.__slucham = {buildDocx, mdBlocks, mdHtml, cleanText, encodeWav, downTo16k, lectureMd, mdPlain, zipStore, crc32};
 </script>
