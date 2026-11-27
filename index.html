@@ -428,7 +428,10 @@ Forma:
 - Zapisuj tezy, definicje, podziały i wyliczenia, przykłady, przepisy, daty, nazwiska oraz wskazówki co do egzaminu, zaliczenia i literatury.
 - Pomijaj rozmowy z sali, żarty bez znaczenia, sprawy techniczne i powtórzenia.
 - Popraw błąd transkrypcji tylko wtedy, gdy z kontekstu jasno wynika, jakie słowo padło. Gdy nie wiadomo, zostaw słowo w brzmieniu z transkrypcji i dopisz "(?)". Nie zgaduj.
-- Nie powtarzaj tego, co już jest w notatkach. Jeśli fragment ciągnie ostatni temat, dopisz same punkty bez nagłówka. Jeśli wykładowca wraca do tematu, który ma już nagłówek na liście, daj nagłówek "## <ten temat> (c.d.)" i zapisz tylko nowe informacje.
+- Gdy zdanie w transkrypcji jest tak zniekształcone, że jego sens jest niepewny, nie odtwarzaj go po swojemu. Zapisz krótko, czego dotyczyło, i dopisz "(niewyraźne w nagraniu)".
+- Przeczenia i wyjątki („nie dotyczy”, „wyłącznie dla”, „chyba że”, „oprócz”) zapisuj dokładnie tak, jak padły. Nie odwracaj ich sensu.
+- Nie uzupełniaj wyliczeń. Jeśli wykładowca zapowiada na przykład trzy elementy, a w tym fragmencie padły dwa, zapisz dwa. Jeśli fragment kontynuuje wyliczenie z końcówki notatek, kontynuuj je zamiast zaczynać nowe.
+- Nie powtarzaj tego, co już jest w notatkach. Jeśli fragment ciągnie ostatni temat, dopisz same punkty bez nagłówka. Jeśli wykładowca wraca do tematu, który ma już nagłówek na liście, użyj dokładnie tego samego nagłówka (aplikacja połączy te części) i zapisz tylko nowe informacje.
 - Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej albo wszystko już jest w notatkach, zwróć dokładnie: BRAK`;
 const SYS_SUM = `Dostajesz notatki z jednego wykładu. Korzystaj wyłącznie z nich: nie dodawaj definicji, pojęć ani faktów, których w notatkach nie ma. Odpowiedz po polsku dokładnie w tym układzie, bez pogrubień w pierwszej linii:
 TEMAT: <temat wykładu w maksymalnie 8 słowach>
@@ -510,7 +513,7 @@ async function maybeNotes(force){
 async function summarize(L){
   if (!L.notes || L.notes.length < 200) return;
   try {
-    const ask = n => chat(SYS_SUM, 'Przedmiot: ' + L.course + '\n\nNotatki:\n"""\n' + L.notes.slice(0, n) + '\n"""');
+    const ask = n => chat(SYS_SUM, 'Przedmiot: ' + L.course + '\n\nNotatki:\n"""\n' + tidyNotes(L.notes).slice(0, n) + '\n"""');
     let out;
     try { out = await ask(60000); }
     catch (e){ if (e.status === 413 || e.status === 429){ await sleep(Math.min(20000, Math.max((e.retryAfter || 0) * 1000, 3000))); out = await ask(9000); } else throw e; }
@@ -591,10 +594,24 @@ const runsHtml = t => inlineRuns(t).map(r => r.b ? '<b>' + esc(r.text) + '</b>' 
 function mdHtml(md){
   return mdBlocks(md).map(b => b.t === 'h' ? '<h' + b.lvl + '>' + runsHtml(b.text) + '</h' + b.lvl + '>' : b.t === 'hr' ? '<hr>' : b.t === 'li' ? '<div class="li l' + b.lvl + '">' + runsHtml(b.text) + '</div>' : b.t === 'ol' ? '<div class="ol" style="margin-left:' + (b.lvl * 18) + 'px">' + esc(b.n) + '. ' + runsHtml(b.text) + '</div>' : '<p>' + runsHtml(b.text) + '</p>').join('');
 }
+function tidyNotes(md){
+  const lines = String(md || '').split(/\r?\n/), pre = [], secs = [], byKey = new Map(); let cur = null;
+  const keyOf = t => t.toLowerCase().replace(/\*+/g, '').replace(/\((c\.\s*d\.|cd|ciąg dalszy)\)/g, '').replace(/[–—-]\s*ciąg dalszy/g, '').replace(/[\s.:;,–—-]+$/g, '').replace(/\s+/g, ' ').trim();
+  for (const line of lines){
+    const m = line.match(/^\s{0,3}(#{1,4})\s+(.*)$/);
+    if (m){
+      const title = m[2].replace(/\s*#+\s*$/, '').replace(/\s*\((c\.\s*d\.|cd|ciąg dalszy)\)\s*$/i, '').trim(), key = keyOf(title), lvl = m[1].length;
+      if (byKey.has(key)){ cur = byKey.get(key); cur.lvl = Math.min(cur.lvl, lvl); }
+      else { cur = {title, lvl, body:[]}; byKey.set(key, cur); secs.push(cur); }
+    } else (cur ? cur.body : pre).push(line);
+  }
+  const clean = arr => arr.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return [clean(pre), ...secs.map(x => '#'.repeat(Math.max(2, x.lvl)) + ' ' + x.title + '\n' + clean(x.body))].filter(Boolean).join('\n\n');
+}
 function lectureMd(L){
   const title = L.course + (L.topic ? ' — ' + L.topic : '');
   const meta = fmtDate(L.startedAt) + ', ' + fmtTime(L.startedAt) + (L.durationSec ? ' · ' + fmtDur(L.durationSec) : '');
-  return '# ' + title + '\n\n*' + meta + '*\n\n' + (L.summary ? L.summary + '\n\n---\n\n' : '') + (L.notes || '(brak notatek)');
+  return '# ' + title + '\n\n*' + meta + '*\n\n' + (L.summary ? L.summary + '\n\n---\n\n' : '') + (L.notes ? tidyNotes(L.notes) : '(brak notatek)');
 }
 function mdPlain(md){ return mdBlocks(md).map(b => b.t === 'h' ? '\n' + b.text.toUpperCase() : b.t === 'hr' ? '' : b.t === 'li' ? '  '.repeat(b.lvl) + '• ' + b.text : b.t === 'ol' ? b.n + '. ' + b.text : b.text).join('\n').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*\n]+)\*/g, '$1').trim(); }
 
@@ -771,7 +788,7 @@ function vLecture(L){
       '<div class="doc-meta">' + esc(meta) + '</div>' +
       '<div class="doc-actions"><button class="btn pri sm" data-act="share" data-id="' + esc(L.id) + '">' + icon('share') + 'Udostępnij</button><button class="btn sec sm" data-act="docx" data-id="' + esc(L.id) + '">' + icon('download') + 'Word</button><button class="btn sec sm" data-act="copy" data-id="' + esc(L.id) + '">' + icon('copy') + 'Kopiuj</button></div>' +
       (L.summary ? '<div class="summary md">' + mdHtml(L.summary) + '</div>' : '') +
-      '<div class="md">' + (L.notes ? mdHtml(L.notes) : '<p class="placeholder">Brak notatek.</p>') + '</div>' +
+      '<div class="md">' + (L.notes ? mdHtml(tidyNotes(L.notes)) : '<p class="placeholder">Brak notatek.</p>') + '</div>' +
       (L.summaryErr && !L.summary ? '<p class="err">Podsumowanie się nie udało: ' + esc(L.summaryErr) + '</p>' : '') +
     '</article>' +
     '<details class="panel"><summary>' + icon('next') + 'Pełna transkrypcja <span class="count">' + Math.max(1, Math.round(tr.length / 1000)) + ' tys. znaków</span></summary><div class="tr">' + esc(tr) + '</div></details>' +
@@ -822,8 +839,8 @@ async function finishLecture(L, redo){
     const full = transcriptText(L);
     while ((L.notedChars || 0) < full.length && !R.notesErrFatal){
       const before = L.notedChars || 0; msg.textContent = 'Piszę notatki… ' + Math.round(before / Math.max(1, full.length) * 100) + '%';
-      const rest = full.slice(before); let take = rest.slice(0, 4200);
-      if (rest.length > 4200){ const cut = Math.max(take.lastIndexOf('. '), take.lastIndexOf('? '), take.lastIndexOf('! ')); if (cut > 2000) take = take.slice(0, cut + 1); }
+      const rest = full.slice(before); let take = rest.slice(0, 6000);
+      if (rest.length > 6000){ const cut = Math.max(take.lastIndexOf('. '), take.lastIndexOf('? '), take.lastIndexOf('! ')); if (cut > 3000) take = take.slice(0, cut + 1); }
       const user = notesUser(L, take);
       const pct = Math.round(before / Math.max(1, full.length) * 100);
       const add = await chat(SYS_NOTES, user, sec => { msg.textContent = 'Piszę notatki… ' + pct + '%. Czekam ' + sec + ' s na limit Groq'; });
@@ -867,7 +884,7 @@ document.addEventListener('change', async ev => {
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.6';
+const APP_VERSION = '2026-11-27.7';
 async function checkUpdate(){
   if (R) return;
   try {
