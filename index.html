@@ -382,21 +382,31 @@ let wake = null;
 async function wakeOn(){ try { if ('wakeLock' in navigator){ wake = await navigator.wakeLock.request('screen'); } } catch {} }
 function wakeOff(){ try { wake && wake.release(); } catch {} wake = null; }
 
-const SYS_NOTES = `Jesteś asystentem, który robi notatki z wykładu akademickiego na żywo. Dostajesz kolejny fragment automatycznej transkrypcji. Transkrypcja może zawierać błędy rozpoznawania mowy, urwane zdania oraz głosy z sali.
-Zasady:
-- Pisz po polsku, w Markdown: nagłówek "## " przy każdym nowym temacie, pod nim zwięzłe punkty "- ", podpunkty z wcięciem dwóch spacji.
-- Zapisuj to, co merytoryczne: tezy, definicje (pojęcie pogrubione **tak**), podziały i wyliczenia, przykłady, przepisy i daty, nazwiska, wskazówki co do zaliczenia i literatury.
-- Pomijaj wszystko, co nie jest treścią wykładu: szepty i rozmowy z sali, kaszel, żarty bez znaczenia, sprawy techniczne, powtórzenia.
-- Poprawiaj oczywiste błędy transkrypcji na podstawie kontekstu, ale niczego nie dopisuj od siebie. Niepewną nazwę lub termin oznacz "(?)".
-- Nie powtarzaj tego, co już jest w dotychczasowych notatkach. Jeśli fragment kontynuuje bieżący temat, nie dawaj nowego nagłówka, tylko kolejne punkty.
-- Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej, zwróć dokładnie: BRAK`;
-const SYS_SUM = `Dostajesz notatki z jednego wykładu. Odpowiedz po polsku dokładnie w tym układzie:
+const SYS_NOTES = `Robisz notatki z wykładu akademickiego na żywo. Dostajesz kolejny fragment automatycznej transkrypcji, listę nagłówków, które już są w notatkach, i końcówkę dotychczasowych notatek. Transkrypcja zawiera błędy rozpoznawania mowy, urwane zdania i głosy z sali.
+
+Najważniejsza zasada: zapisuj wyłącznie to, co wykładowca powiedział w tym fragmencie. Nie dopisuj pojęć, definicji, przepisów, przykładów, nazwisk ani wniosków, których w nim nie ma, nawet jeśli pasują do tematu i wydają się oczywiste. Gdy wykładowca tylko zapowiada temat albo mówi ogólnie, zapisz to ogólnie, a nie rozwinięcie z własnej wiedzy. Nie dopowiadaj też okoliczności, których nie wypowiedział wprost.
+
+Forma:
+- Markdown po polsku. Każdy nowy temat zaczynaj nagłówkiem "## ". Gdy wykładowca przechodzi do czegoś innego, na przykład z przykładu do spraw organizacyjnych albo do nowego zagadnienia, daj nowy nagłówek. Nie rób nagłówków w postaci punktu zakończonego dwukropkiem.
+- Pod nagłówkiem zwięzłe punkty "- ", podpunkty z wcięciem dwóch spacji. Termin, który wykładowca definiuje, pogrub **tak**.
+- Zapisuj tezy, definicje, podziały i wyliczenia, przykłady, przepisy, daty, nazwiska oraz wskazówki co do egzaminu, zaliczenia i literatury.
+- Pomijaj rozmowy z sali, żarty bez znaczenia, sprawy techniczne i powtórzenia.
+- Popraw błąd transkrypcji tylko wtedy, gdy z kontekstu jasno wynika, jakie słowo padło. Gdy nie wiadomo, zostaw słowo w brzmieniu z transkrypcji i dopisz "(?)". Nie zgaduj.
+- Nie powtarzaj tego, co już jest w notatkach. Jeśli fragment ciągnie ostatni temat, dopisz same punkty bez nagłówka. Jeśli wykładowca wraca do tematu, który ma już nagłówek na liście, daj nagłówek "## <ten temat> (c.d.)" i zapisz tylko nowe informacje.
+- Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej albo wszystko już jest w notatkach, zwróć dokładnie: BRAK`;
+const SYS_SUM = `Dostajesz notatki z jednego wykładu. Korzystaj wyłącznie z nich: nie dodawaj definicji, pojęć ani faktów, których w notatkach nie ma. Odpowiedz po polsku dokładnie w tym układzie, bez pogrubień w pierwszej linii:
 TEMAT: <temat wykładu w maksymalnie 8 słowach>
 ## Najważniejsze
 - 5 do 8 punktów z najważniejszymi tezami wykładu
 ## Do zapamiętania
-- definicje, terminy, zapowiedzi kolokwiów i zalecana literatura, jeśli padły; jeśli nic takiego nie padło, pomiń całą tę sekcję
-Niczego nie dopisuj spoza notatek.`;
+- definicje i terminy, które padły w notatkach, zapowiedzi egzaminu i kolokwiów oraz zalecana literatura; jeśli nic takiego nie ma, pomiń całą tę sekcję`;
+function notesUser(L, take){
+  const heads = [...String(L.notes || '').matchAll(/^#{1,3}\s+(.+)$/gm)].map(m => '- ' + m[1].trim());
+  return 'Przedmiot: ' + L.course +
+    '\n\nNagłówki już w notatkach:\n' + (heads.length ? heads.join('\n') : '(jeszcze brak)') +
+    '\n\nKońcówka dotychczasowych notatek (tylko dla ciągłości):\n"""\n' + (L.notes ? L.notes.slice(-1200) : '(jeszcze brak)') + '\n"""' +
+    '\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
+}
 
 async function transcribeSeg(seg){
   const L = R.lecture, hints = ((CFG.courses[L.course] || {}).hints || '').trim();
@@ -451,7 +461,7 @@ async function maybeNotes(force){
       if (!(force ? pending.trim().length >= 40 : due)) break;
       let take = pending;
       if (!force){ const cut = Math.max(pending.lastIndexOf('. '), pending.lastIndexOf('? '), pending.lastIndexOf('! ')); if (cut > pending.length * 0.5) take = pending.slice(0, cut + 1); }
-      const user = 'Przedmiot: ' + L.course + '\n\nDotychczasowe notatki (końcówka, tylko dla ciągłości):\n"""\n' + (L.notes ? L.notes.slice(-1500) : '(jeszcze brak)') + '\n"""\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
+      const user = notesUser(L, take);
       let add;
       try { add = await chat(SYS_NOTES, user); R.notesErr = ''; }
       catch (e){ R.notesErr = e.message; uiStatus(); R.notesHold = Date.now() + Math.max((e.retryAfter || 0) * 1000, 15000); if (force && (R.notesTries = (R.notesTries || 0) + 1) < 4){ await sleep(Math.max((e.retryAfter || 0) * 1000, 2500)); continue; } break; }
@@ -468,8 +478,10 @@ async function summarize(L){
     let out;
     try { out = await ask(60000); }
     catch (e){ if (e.status === 413 || e.status === 429){ await sleep(Math.min(20000, Math.max((e.retryAfter || 0) * 1000, 3000))); out = await ask(9000); } else throw e; }
-    const m = out.match(/^\s*TEMAT:\s*(.+)$/mi); if (m && !L.topic) L.topic = m[1].trim().replace(/[.*]+$/, '').slice(0, 90);
-    L.summary = out.replace(/^\s*TEMAT:.*$/mi, '').trim();
+    const TOPIC_RE = /^[\s#>*_-]*TEMAT[*_]*\s*[:：–-]\s*[*_]*\s*(.+)$/mi;
+    const m = out.match(TOPIC_RE);
+    if (m && !L.topic) L.topic = m[1].replace(/[*_]+/g, '').trim().replace(/[.]+$/, '').slice(0, 90);
+    L.summary = out.replace(TOPIC_RE, '').trim();
   } catch (e){ L.summaryErr = e.message; }
 }
 async function startRecording(course, hints){
@@ -775,7 +787,7 @@ async function finishLecture(L, redo){
       const before = L.notedChars || 0; msg.textContent = 'Piszę notatki… ' + Math.round(before / Math.max(1, full.length) * 100) + '%';
       const rest = full.slice(before); let take = rest.slice(0, 4200);
       if (rest.length > 4200){ const cut = Math.max(take.lastIndexOf('. '), take.lastIndexOf('? '), take.lastIndexOf('! ')); if (cut > 2000) take = take.slice(0, cut + 1); }
-      const user = 'Przedmiot: ' + L.course + '\n\nDotychczasowe notatki (końcówka, tylko dla ciągłości):\n"""\n' + (L.notes ? L.notes.slice(-1500) : '(jeszcze brak)') + '\n"""\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
+      const user = notesUser(L, take);
       let add, tries = 0;
       for (;;){ try { add = await chat(SYS_NOTES, user); break; } catch (e){ if (++tries >= 4) throw e; await sleep(Math.max(e.retryAfter * 1000, 3000)); } }
       L.notedChars = before + take.length; if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
@@ -818,7 +830,7 @@ document.addEventListener('change', async ev => {
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.4';
+const APP_VERSION = '2026-11-27.5';
 async function checkUpdate(){
   if (R) return;
   try {
