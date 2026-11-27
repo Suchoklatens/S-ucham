@@ -3,77 +3,184 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#f7f4ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141415" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-title" content="Słucham">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <title>Słucham – notatki z wykładu</title>
 <style>
 :root{
-  --bg:#f6f5f2; --card:#ffffff; --ink:#16181d; --mute:#6b7280; --line:#e4e2dc;
-  --acc:#b42318; --acc-ink:#ffffff; --ok:#1a7f4b; --warn:#a15c07; --soft:#efede8;
+  --bg:#f7f4ee; --card:#fdfbf7; --raised:#efe9df;
+  --ink:#1f1b16; --ink2:#5e554a; --ink3:#7b7266;
+  --line:rgba(31,27,22,.09); --wave:rgba(31,27,22,.28);
+  --rec:#b42318; --rec-ink:#b42318; --ok:#16a34a; --warn:#9a5b0b; --danger:#b42318;
+  --pri-bg:#1f1b16; --pri-ink:#fdfbf7; --seg-on:#fdfbf7;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
 }
 @media (prefers-color-scheme: dark){
-  :root{ --bg:#0f1115; --card:#181b21; --ink:#eceef2; --mute:#9aa1ad; --line:#2a2e37; --soft:#20242c; --acc:#e5484d; --ok:#3ecf8e; --warn:#f0b35a; }
+  :root{
+    --bg:#141415; --card:#19191b; --raised:#232325;
+    --ink:#ededed; --ink2:#a1a1a6; --ink3:#85858b;
+    --line:rgba(237,237,237,.08); --wave:rgba(237,237,237,.26);
+    --rec-ink:#e5484d; --ok:#4cc38a; --warn:#e0a458; --danger:#e5484d;
+    --pri-bg:#ededed; --pri-ink:#141415; --seg-on:#323235;
+  }
 }
+html{color-scheme:light dark;-webkit-text-size-adjust:100%}
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
-body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-#app{max-width:680px;margin:0 auto;padding:12px 16px 120px}
-header.top{display:flex;align-items:center;justify-content:space-between;padding:8px 0 14px}
-header.top h1{font-size:22px;margin:0;letter-spacing:-.02em}
-button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;background:var(--soft);font-weight:600}
-.btn.pri{background:var(--ink);color:var(--bg)}
-.btn.red{background:var(--acc);color:var(--acc-ink)}
-.btn.ghost{background:transparent;border:1px solid var(--line)}
-.btn.sm{min-height:36px;padding:0 12px;font-size:14px;border-radius:10px}
-.btn:disabled{opacity:.45}
-.icon{width:44px;height:44px;border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:20px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin:0 0 14px}
-label{display:block;font-size:13px;color:var(--mute);margin:12px 0 4px}
-input,select,textarea{width:100%;font:inherit;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:44px}
-textarea{min-height:70px;resize:vertical}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.mute{color:var(--mute);font-size:14px}
-.err{color:var(--acc);font-size:14px}
-.okc{color:var(--ok);font-size:14px}
-.big{width:100%;min-height:64px;font-size:19px;border-radius:18px;margin-top:14px}
-h2.sec{font-size:13px;text-transform:none;color:var(--mute);font-weight:600;margin:22px 2px 8px}
-.item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px}
-.item b{display:block;font-size:16px}
-.item span{color:var(--mute);font-size:13px}
-.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--soft);color:var(--warn);margin-left:6px}
-.rechead{display:flex;align-items:center;gap:10px}
-.dot{width:12px;height:12px;border-radius:50%;background:var(--acc);animation:pulse 1.4s infinite}
-@keyframes pulse{50%{opacity:.25}}
-@media (prefers-reduced-motion: reduce){.dot{animation:none}}
-.timer{font-variant-numeric:tabular-nums;font-size:34px;font-weight:700;letter-spacing:-.02em}
-.meter{height:8px;background:var(--soft);border-radius:99px;overflow:hidden;margin:10px 0 6px}
-.meter i{display:block;height:100%;width:0;background:var(--ok);border-radius:99px;transition:width .1s linear}
-.tabs{display:flex;gap:6px;margin:14px 0 10px}
-.tabs button{flex:1;min-height:40px;border-radius:10px;background:var(--soft);font-weight:600;color:var(--mute)}
-.tabs button.on{background:var(--ink);color:var(--bg)}
-.md h1{font-size:21px;margin:14px 0 6px;line-height:1.25}
-.md h2{font-size:18px;margin:18px 0 6px;line-height:1.3}
-.md h3{font-size:16px;margin:14px 0 4px}
-.md p{margin:6px 0}
-.md .li{position:relative;padding-left:18px;margin:3px 0}
-.md .li::before{content:"•";position:absolute;left:4px;color:var(--mute)}
-.md .li.l1{margin-left:18px}.md .li.l2{margin-left:36px}
-.md .ol{margin:3px 0}
-.md hr{border:0;border-top:1px solid var(--line);margin:14px 0}
-.tr{font-size:14px;color:var(--mute);white-space:pre-wrap}
-.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center}
-.bar .btn{flex:1;max-width:330px}
-#blackout{position:fixed;inset:0;background:#000;color:#3a3a3a;display:none;align-items:flex-end;justify-content:center;padding:0 0 60px;z-index:50;font-size:14px;text-align:center}
-#blackout.on{display:flex}
-#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:60}
-#toast.on{opacity:1}
-details summary{cursor:pointer;color:var(--mute);font-size:14px;padding:8px 0}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--sans);-webkit-font-smoothing:antialiased}
+#app{max-width:640px;margin:0 auto;padding:max(8px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) calc(112px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:disabled{opacity:.45}
 a{color:inherit}
+:focus-visible{outline:2px solid var(--ink3);outline-offset:2px}
+.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ic.fill{fill:currentColor;stroke:none}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;min-height:56px;margin-bottom:8px}
+.brand{display:inline-flex;align-items:center;gap:8px;font-size:17px;line-height:1;font-weight:600}
+.rec-dot{width:10px;height:10px;border-radius:50%;background:var(--rec);flex:none}
+.icon-btn{width:44px;height:44px;margin-right:-12px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;color:var(--ink2);transition:background-color .16s var(--ease)}
+.icon-btn:hover{background:var(--raised)}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;margin-left:-8px;padding:0 8px;border-radius:8px;color:var(--ink2);font-size:15px;transition:background-color .16s var(--ease)}
+.back:hover{background:var(--raised)}
+.page-title{font:500 28px/1.15 var(--serif);margin:8px 0 20px}
+
+/* surfaces */
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;margin:0 0 12px}
+.panel-title{font-size:16px;line-height:24px;font-weight:500;margin:0 0 4px}
+.lbl{display:block;font-size:13px;line-height:20px;color:var(--ink2);margin:16px 0 8px}
+.lbl.first{margin-top:0}
+input,select,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--raised);border:1px solid transparent;border-radius:10px;padding:12px;min-height:48px;outline:none;-webkit-appearance:none;appearance:none;transition:border-color .16s var(--ease),background-color .16s var(--ease)}
+select{background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),linear-gradient(135deg,var(--ink3) 50%,transparent 50%);background-position:calc(100% - 20px) 21px,calc(100% - 15px) 21px;background-size:5px 5px;background-repeat:no-repeat;padding-right:36px}
+input:focus,select:focus,textarea:focus{border-color:var(--ink3);background-color:var(--card)}
+input::placeholder,textarea::placeholder{color:var(--ink3)}
+textarea{min-height:88px;resize:vertical;line-height:1.45}
+.check{display:flex;align-items:center;gap:12px;min-height:44px;font-size:15px;color:var(--ink)}
+.check input{width:20px;height:20px;min-height:0;padding:0;margin:0;accent-color:var(--pri-bg);-webkit-appearance:checkbox;appearance:auto}
+details>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;font-size:14px;color:var(--ink2)}
+details>summary::-webkit-details-marker{display:none}
+details>summary .ic{width:16px;height:16px;transition:transform .16s var(--ease)}
+details[open]>summary .ic{transform:rotate(90deg)}
+.hints{margin-top:8px}
+.help{font-size:13px;line-height:20px;color:var(--ink3);margin:12px 0 0}
+.mute{font-size:13px;line-height:20px;color:var(--ink3)}
+.okc{font-size:13px;line-height:20px;color:var(--ok)}
+.err{font-size:13px;line-height:20px;color:var(--danger)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:10px;font-size:15px;line-height:1;font-weight:500;white-space:nowrap;transition:background-color .16s var(--ease),transform .12s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn.pri{background:var(--pri-bg);color:var(--pri-ink)}
+.btn.sec{background:var(--raised);color:var(--ink)}
+.btn.ghost{color:var(--ink2)}
+.btn.ghost:hover{background:var(--raised)}
+.btn.danger{color:var(--danger)}
+.btn.sm{min-height:36px;padding:0 12px;font-size:14px;border-radius:8px}
+.btn .ic{width:16px;height:16px}
+.btn-rec{width:100%;min-height:56px;margin-top:20px;display:flex;align-items:center;justify-content:center;gap:12px;border-radius:12px;background:var(--rec);color:#fff;font-size:17px;line-height:1;font-weight:500;transition:transform .12s var(--ease),filter .16s var(--ease)}
+.btn-rec:hover{filter:brightness(1.06)}
+.btn-rec:active{transform:scale(.98)}
+.btn-rec .w{width:12px;height:12px;border-radius:50%;background:#fff}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+/* archive */
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:32px 4px 8px}
+.sec-head h2{margin:0;font-size:15px;line-height:20px;font-weight:500}
+.count{font:400 12px/16px var(--mono);color:var(--ink3)}
+.list{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.entry{display:flex;align-items:center;gap:12px;width:100%;min-height:68px;padding:12px 16px 12px 20px;text-align:left;border-top:1px solid var(--line);transition:background-color .16s var(--ease)}
+.entry:first-child{border-top:0}
+.entry:hover,.entry:active{background:var(--raised)}
+.entry-main{flex:1;min-width:0}
+.entry-title{display:flex;align-items:center;gap:8px;font-size:16px;line-height:22px;font-weight:500}
+.entry-title span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.entry-meta{font-size:13px;line-height:20px;color:var(--ink3);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.entry-meta .num{font-variant-numeric:tabular-nums}
+.entry-meta .state{color:var(--warn)}
+.entry>.ic{width:16px;height:16px;color:var(--ink3)}
+.empty{padding:24px 20px;font-size:14px;line-height:22px;color:var(--ink3)}
+
+/* recording */
+.rec-head{display:flex;align-items:center;gap:8px;font-size:14px;line-height:20px;color:var(--ink2);min-width:0}
+.rec-head b{font-weight:500;color:var(--ink);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.rec-head .rec-dot{animation:live 2.4s ease-in-out infinite}
+@keyframes live{50%{opacity:.35}}
+.timer{font-size:48px;line-height:1.1;font-weight:500;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:12px 0 16px}
+.wave{display:block;width:100%;height:48px}
+.status{font:400 12px/18px var(--mono);color:var(--ink3);margin-top:12px;font-variant-numeric:tabular-nums}
+.status .err{font-family:var(--sans);margin-top:4px}
+.seg{display:flex;gap:4px;padding:4px;background:var(--raised);border-radius:12px;margin:20px 0 12px}
+.seg button{flex:1;min-height:36px;border-radius:8px;font-size:14px;line-height:1;font-weight:500;color:var(--ink2);transition:background-color .16s var(--ease),color .16s var(--ease)}
+.seg button.on{background:var(--seg-on);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;gap:12px;padding:12px max(20px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));background:var(--bg);border-top:1px solid var(--line)}
+.dock .btn{flex:1;max-width:300px;min-height:48px}
+.finish{flex:1;text-align:center;font-size:14px;line-height:20px;color:var(--ink2);white-space:pre-line;padding:4px 0}
+.finish .btn{margin-top:8px}
+
+/* notes */
+.md{font-size:16px;line-height:1.55}
+.md h1,.md h2{font-size:18px;line-height:26px;font-weight:500;margin:24px 0 8px}
+.md h3{font-size:16px;line-height:24px;font-weight:500;margin:16px 0 4px}
+.md>:first-child{margin-top:0}
+.md p{margin:8px 0}
+.md b{font-weight:600}
+.md .li{position:relative;padding-left:16px;margin:4px 0}
+.md .li::before{content:"";position:absolute;left:2px;top:11px;width:5px;height:5px;border-radius:50%;background:var(--ink3)}
+.md .li.l1{margin-left:16px}
+.md .li.l1::before{background:none;border:1px solid var(--ink3);width:3px;height:3px}
+.md .li.l2{margin-left:32px}
+.md .ol{margin:4px 0;font-variant-numeric:tabular-nums}
+.md hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.md .placeholder{color:var(--ink3);font-size:15px;margin:0}
+.tr{font-size:14px;line-height:22px;color:var(--ink2);white-space:pre-wrap}
+
+/* lecture page */
+.paper{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 20px 28px;margin:0 0 12px}
+.eyebrow{font-size:14px;line-height:20px;color:var(--ink2)}
+.doc-title{font:500 28px/1.15 var(--serif);margin:4px 0 8px;overflow-wrap:anywhere}
+.doc-meta{font:400 12px/16px var(--mono);color:var(--ink3);font-variant-numeric:tabular-nums}
+.doc-actions{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0 0}
+.doc-actions .btn{flex:1 1 0;padding:0 12px}
+.doc-actions .btn.pri{flex-basis:100%}
+.summary{background:var(--raised);border-radius:12px;padding:16px;margin:24px 0}
+.summary.md h1,.summary.md h2{font-size:14px;line-height:20px;color:var(--ink2);margin:16px 0 4px}
+.summary.md>:first-child{margin-top:0}
+.summary.md .li::before{background:var(--ink2)}
+.paper>.md{margin-top:24px}
+.notice{display:flex;flex-direction:column;gap:12px}
+.notice p{margin:0;font-size:14px;line-height:22px;color:var(--ink2)}
+.quiet{display:flex;gap:4px;flex-wrap:wrap;margin:4px -8px 0}
+#msg{margin-top:8px}
+
+/* overlays */
+#blackout{position:fixed;inset:0;z-index:50;display:none;align-items:flex-end;justify-content:center;padding:0 24px calc(48px + env(safe-area-inset-bottom));background:#000;color:#3d3d3d;font-size:13px;line-height:20px;text-align:center}
+#blackout.on{display:flex}
+#blackout span{font-variant-numeric:tabular-nums}
+#toast{position:fixed;left:50%;bottom:calc(88px + env(safe-area-inset-bottom));z-index:60;max-width:calc(100% - 40px);transform:translate(-50%,8px);padding:10px 16px;border-radius:10px;background:var(--pri-bg);color:var(--pri-ink);font-size:14px;line-height:20px;opacity:0;pointer-events:none;transition:opacity .2s var(--ease),transform .2s var(--ease)}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* one entrance */
+.view>*{animation:rise .36s var(--ease) both}
+.view>*:nth-child(2){animation-delay:40ms}
+.view>*:nth-child(3){animation-delay:80ms}
+.view>*:nth-child(4){animation-delay:120ms}
+.view>*:nth-child(5){animation-delay:160ms}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+@media (prefers-reduced-motion: reduce){
+  .view>*,.rec-head .rec-dot{animation:none}
+  *{transition-duration:0s!important}
+}
 </style>
 </head>
 <body>
 <div id="app"></div>
-<div id="blackout"><div>● nagrywam <span id="bo-t">00:00</span><br>dotknij, aby wrócić</div></div>
+<div id="blackout"><div>Nagrywanie trwa · <span id="bo-t">00:00</span><br>Dotknij, aby wrócić</div></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
 'use strict';
@@ -365,12 +472,13 @@ async function startRecording(course, hints){
   CFG.courses[course] = Object.assign(CFG.courses[course] || {}, {hints:(hints || '').trim()}); CFG.lastCourse = course; saveCfg();
   const L = {id:'L' + Date.now().toString(36), course, topic:'', startedAt:Date.now(), endedAt:0, durationSec:0, transcript:[], notes:'', summary:'', notedChars:0, status:'recording'};
   R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:Date.now(), tab:'notes', forceWav:false};
-  R.rec = new Rec(seg => { if (seg.blob && seg.blob.size > 800){ R.queue.push(seg); pump(); } uiStatus(); }, lv => { const m = $('#lvl'); if (m) m.style.width = Math.round(lv * 100) + '%'; });
+  WAVE.length = 0;
+  R.rec = new Rec(seg => { if (seg.blob && seg.blob.size > 800){ R.queue.push(seg); pump(); } uiStatus(); }, pushLevel);
   try { await R.rec.start(); }
   catch (e){ R = null; toast(e && e.name === 'NotAllowedError' ? 'Brak zgody na mikrofon. Zezwól w ustawieniach Safari.' : 'Nie udało się uruchomić mikrofonu: ' + (e && e.message || e), 5000); return; }
   LECT.unshift(L); await DB.put(L); wakeOn();
   try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}
-  R.clock = setInterval(() => { const s = (Date.now() - L.startedAt) / 1000; const t = $('#timer'); if (t) t.textContent = fmtDur(s); $('#bo-t').textContent = fmtDur(s); if (!R.notesBusy) maybeNotes(false); }, 1000);
+  R.clock = setInterval(() => { const s = (Date.now() - L.startedAt) / 1000; const t = $('#timer'); if (t) t.textContent = fmtDur(s); $('#bo-t').textContent = fmtDur(s); uiStatus(); if (!R.notesBusy) maybeNotes(false); }, 1000);
   go('rec');
 }
 async function stopRecording(){
@@ -489,71 +597,142 @@ async function shareLecture(L){
 }
 
 /* ================= UI ================= */
+const ICONS = {
+  settings:'<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
+  back:'<path d="m15 18-6-6 6-6"/>',
+  next:'<path d="m9 18 6-6-6-6"/>',
+  share:'<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/>',
+  download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  copy:'<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+  moon:'<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  redo:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  trash:'<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2"/>'
+};
+const icon = n => '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[n] + '</svg>';
+const stopIcon = '<svg class="ic fill" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+const plural = (n, one, few, many) => n === 1 ? one : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20)) ? few : many;
+const fmtShort = t => new Date(t).toLocaleDateString('pl-PL', {day:'numeric', month:'short'}) + ', ' + fmtTime(t);
+
 let VIEW = {name:'home', arg:null};
 function go(name, arg){ VIEW = {name, arg}; render(); window.scrollTo(0, 0); }
 function render(){
-  const a = $('#app');
-  if (VIEW.name === 'rec' && R) a.innerHTML = vRec();
-  else if (VIEW.name === 'lecture') a.innerHTML = vLecture(LECT.find(l => l.id === VIEW.arg));
-  else if (VIEW.name === 'settings') a.innerHTML = vSettings();
-  else a.innerHTML = vHome();
-  if (VIEW.name === 'rec' && R){ uiNotes(); uiTranscript(); uiStatus(); }
+  const a = $('#app'); let html;
+  if (VIEW.name === 'rec' && R) html = vRec();
+  else if (VIEW.name === 'lecture') html = vLecture(LECT.find(l => l.id === VIEW.arg));
+  else if (VIEW.name === 'settings') html = vSettings();
+  else html = vHome();
+  a.innerHTML = '<div class="view">' + html + '</div>';
+  if (VIEW.name === 'rec' && R){ uiNotes(); uiTranscript(); uiStatus(); WAVE_COL = null; drawWave(); }
 }
-const topBar = (title, right) => '<header class="top"><h1>' + esc(title) + '</h1>' + (right || '') + '</header>';
+
 function vHome(){
   const courses = Object.keys(CFG.courses), cur = CFG.lastCourse || '';
   const ready = CFG.sttKey && (CFG.llmSame || CFG.llmKey);
-  return topBar('Słucham', '<button class="icon" data-act="settings" aria-label="Ustawienia">⚙︎</button>') +
-    (R ? '<div class="card"><b>Nagrywanie trwa</b><div class="row" style="margin-top:10px"><button class="btn red" data-act="back-rec">Wróć do nagrania</button></div></div>' :
-    !ready ? '<div class="card"><b>Najpierw klucz API</b><p class="mute">Aplikacja potrzebuje klucza do usługi, która zamienia mowę na tekst i pisze notatki. Wpisujesz go raz, zostaje tylko w tym telefonie.</p><button class="btn pri" data-act="settings">Otwórz ustawienia</button></div>' :
-    '<div class="card"><label for="course">Przedmiot</label><input id="course" list="courses" placeholder="np. Prawo administracyjne" value="' + esc(cur) + '" autocomplete="off"><datalist id="courses">' + courses.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>' +
-    '<details><summary>Podpowiedzi dla transkrypcji (nazwiska, trudne terminy)</summary><textarea id="hints" placeholder="np. Zimmermann, k.p.a., decyzja administracyjna, WSA">' + esc((CFG.courses[cur] || {}).hints || '') + '</textarea></details>' +
-    '<button class="btn red big" data-act="start">● Zacznij słuchać</button>' +
-    '<p class="mute" style="margin:12px 0 0">Połóż telefon ekranem do góry, jak najbliżej wykładowcy. Ekran musi zostać włączony i ta strona musi być na wierzchu. Możesz go przyciemnić przyciskiem „Wygaś ekran”.</p></div>') +
-    '<h2 class="sec">Archiwum' + (LECT.length ? ' (' + LECT.length + ')' : '') + '</h2>' +
-    (LECT.length ? LECT.map(l => '<button class="item" data-act="open" data-id="' + esc(l.id) + '"><b>' + esc(l.course) + (l.topic ? ' — ' + esc(l.topic) : '') + (l.status !== 'done' && !(R && R.lecture.id === l.id) ? '<span class="tag">niedokończone</span>' : '') + '</b><span>' + esc(fmtDate(l.startedAt)) + ', ' + esc(fmtTime(l.startedAt)) + (l.durationSec ? ' · ' + fmtDur(l.durationSec) : '') + '</span></button>').join('') : '<p class="mute">Tu pojawią się notatki z każdego wykładu.</p>');
+  const head = '<header class="top"><span class="brand"><span class="rec-dot" aria-hidden="true"></span>Słucham</span><button class="icon-btn" data-act="settings" aria-label="Ustawienia">' + icon('settings') + '</button></header>';
+  let main;
+  if (R) main = '<section class="panel notice"><div class="rec-head"><span class="rec-dot"></span><b>Nagrywanie trwa: ' + esc(R.lecture.course) + '</b></div><div class="row-btns"><button class="btn pri" data-act="back-rec">Wróć do nagrania</button></div></section>';
+  else if (!ready) main = '<section class="panel notice"><h2 class="panel-title">Połącz z usługą transkrypcji</h2><p>Aplikacja potrzebuje klucza API, żeby zamieniać mowę na tekst i pisać notatki. Wpisujesz go raz, zostaje tylko w tym telefonie.</p><div class="row-btns"><button class="btn pri" data-act="settings">Dodaj klucz API</button></div></section>';
+  else main = '<section class="panel">' +
+    '<label class="lbl first" for="course">Przedmiot</label>' +
+    '<input id="course" list="courses" placeholder="np. Prawo administracyjne" value="' + esc(cur) + '" autocomplete="off" autocapitalize="sentences">' +
+    '<datalist id="courses">' + courses.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>' +
+    '<details class="hints"><summary>' + icon('next') + 'Słowa kluczowe dla transkrypcji</summary><textarea id="hints" placeholder="Zimmermann, k.p.a., decyzja administracyjna, WSA">' + esc((CFG.courses[cur] || {}).hints || '') + '</textarea><p class="help">Nazwiska, skróty i terminy, które mogą paść na wykładzie. Zapamiętuję je osobno dla każdego przedmiotu.</p></details>' +
+    '<button class="btn-rec" data-act="start"><span class="w" aria-hidden="true"></span>Zacznij słuchać</button>' +
+    '<p class="help">Połóż telefon ekranem do góry, jak najbliżej wykładowcy. Ekran musi zostać włączony, a ta strona na wierzchu.</p></section>';
+  const list = LECT.length
+    ? '<div class="list">' + LECT.map(l => {
+        const live = R && R.lecture.id === l.id, partial = l.status !== 'done' && !live;
+        const title = l.topic || l.course;
+        const meta = [l.topic ? esc(l.course) : '', esc(fmtShort(l.startedAt)), l.durationSec ? '<span class="num">' + fmtDur(l.durationSec) + '</span>' : '', live ? 'nagrywanie' : partial ? '<span class="state">niepełne</span>' : ''].filter(Boolean).join(' · ');
+        return '<button class="entry" data-act="' + (live ? 'back-rec' : 'open') + '" data-id="' + esc(l.id) + '"><div class="entry-main"><div class="entry-title">' + (live ? '<i class="rec-dot" aria-hidden="true"></i>' : '') + '<span>' + esc(title) + '</span></div><div class="entry-meta">' + meta + '</div></div>' + icon('next') + '</button>';
+      }).join('') + '</div>'
+    : '<div class="list"><p class="empty">Tu trafią notatki z każdego wykładu, z podsumowaniem i pełną transkrypcją.</p></div>';
+  return head + main + '<div class="sec-head"><h2>Archiwum</h2>' + (LECT.length ? '<span class="count">' + LECT.length + '</span>' : '') + '</div>' + list;
 }
+
 function vRec(){
   const L = R.lecture;
-  return '<div class="card"><div class="rechead"><span class="dot"></span><b>' + esc(L.course) + '</b></div><div class="timer" id="timer">' + fmtDur((Date.now() - L.startedAt) / 1000) + '</div><div class="meter"><i id="lvl"></i></div><div class="mute" id="status"></div></div>' +
-    '<div class="tabs"><button data-act="tab" data-tab="notes" class="' + (R.tab === 'notes' ? 'on' : '') + '">Notatki</button><button data-act="tab" data-tab="tr" class="' + (R.tab === 'tr' ? 'on' : '') + '">Transkrypcja</button></div>' +
-    '<div class="card"><div id="notes" class="md" ' + (R.tab === 'notes' ? '' : 'hidden') + '></div><div id="tr" class="tr" ' + (R.tab === 'tr' ? '' : 'hidden') + '></div></div>' +
-    '<div class="bar" id="bar"><button class="btn ghost" data-act="blackout">Wygaś ekran</button><button class="btn red" data-act="stop">■ Zakończ</button></div>';
+  return '<header class="top"><div class="rec-head"><span class="rec-dot" aria-hidden="true"></span><b>' + esc(L.course) + '</b></div></header>' +
+    '<section class="panel"><div class="mute">Nagrywanie</div><div class="timer" id="timer">' + fmtDur((Date.now() - L.startedAt) / 1000) + '</div><canvas id="wave" class="wave" aria-hidden="true"></canvas><div class="status" id="status"></div></section>' +
+    '<div class="seg" role="tablist"><button role="tab" data-act="tab" data-tab="notes" class="' + (R.tab === 'notes' ? 'on' : '') + '">Notatki</button><button role="tab" data-act="tab" data-tab="tr" class="' + (R.tab === 'tr' ? 'on' : '') + '">Transkrypcja</button></div>' +
+    '<section class="panel"><div id="notes" class="md"' + (R.tab === 'notes' ? '' : ' hidden') + '></div><div id="tr" class="tr"' + (R.tab === 'tr' ? '' : ' hidden') + '></div></section>' +
+    '<div class="dock" id="bar"><button class="btn sec" data-act="blackout">' + icon('moon') + 'Wygaś ekran</button><button class="btn pri" data-act="stop">' + stopIcon + 'Zakończ</button></div>';
 }
-function uiNotes(){ const n = $('#notes'); if (!n || !R) return; n.innerHTML = R.lecture.notes ? mdHtml(R.lecture.notes) : '<p class="mute">Pierwsze notatki pojawią się po około ' + CFG.notesEveryMin + ' min.</p>'; }
-function uiTranscript(){ const t = $('#tr'); if (!t || !R) return; t.textContent = transcriptText(R.lecture) || 'Czekam na pierwszy fragment…'; }
+function uiNotes(){ const n = $('#notes'); if (!n || !R) return; n.innerHTML = R.lecture.notes ? mdHtml(R.lecture.notes) : '<p class="placeholder">Pierwsze notatki pojawią się po około ' + CFG.notesEveryMin + ' min słuchania.</p>'; }
+function uiTranscript(){ const t = $('#tr'); if (!t || !R) return; t.textContent = transcriptText(R.lecture) || 'Pierwszy fragment pojawi się po około pół minuty.'; }
 function uiStatus(){
   const s = $('#status'); if (!s || !R) return;
-  const bits = ['Rozpoznane fragmenty: ' + R.done]; if (R.queue.length) bits.push('w kolejce: ' + R.queue.length); if (R.failed) bits.push('pominięte przez błąd: ' + R.failed);
-  s.innerHTML = esc(bits.join(' · ')) + (R.netErr ? '<div class="err">' + esc(R.netErr) + ' Ponawiam.</div>' : '') + (R.notesErr ? '<div class="err">Notatki: ' + esc(R.notesErr) + '</div>' : '');
+  const parts = [R.done + ' ' + plural(R.done, 'fragment', 'fragmenty', 'fragmentów')];
+  if (R.queue.length) parts.push(R.queue.length + ' w kolejce');
+  if (R.failed) parts.push(R.failed + ' ' + plural(R.failed, 'pominięty', 'pominięte', 'pominiętych'));
+  if (R.notesBusy) parts.push('piszę notatki');
+  else if (!R.finishing){
+    const every = (dbg().notesEverySec || CFG.notesEveryMin * 60) * 1000, left = every - (Date.now() - R.lastNotesAt);
+    parts.push(left > 60000 ? 'notatki za ok. ' + Math.ceil(left / 60000) + ' min' : 'notatki za chwilę');
+  }
+  s.innerHTML = esc(parts.join(' · ')) + (R.netErr ? '<div class="err">' + esc(R.netErr) + ' Ponawiam.</div>' : '') + (R.notesErr ? '<div class="err">Notatki: ' + esc(R.notesErr) + '</div>' : '');
 }
 function uiFinish(msg, allowSkip){
-  const b = $('#bar'); if (b) b.innerHTML = '<div style="flex:1;text-align:center"><div class="mute" style="white-space:pre-line">' + esc(msg) + '</div>' + (allowSkip ? '<button class="btn sm ghost" data-act="skipq" style="margin-top:6px">Zakończ bez czekania</button>' : '') + '</div>';
+  const b = $('#bar'); if (b) b.innerHTML = '<div class="finish">' + esc(msg) + (allowSkip ? '<br><button class="btn sm sec" data-act="skipq">Zakończ bez czekania</button>' : '') + '</div>';
 }
+
+/* live level trace */
+const WAVE = []; let WAVE_COL = null;
+function pushLevel(lv){ WAVE.push(lv); if (WAVE.length > 600) WAVE.shift(); drawWave(); }
+function drawWave(){
+  const c = $('#wave'); if (!c) return;
+  const w = c.clientWidth, h = c.clientHeight; if (!w || !h) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)){ c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); }
+  if (!WAVE_COL){ const cs = getComputedStyle(c); WAVE_COL = {base:cs.getPropertyValue('--wave').trim() || '#999', hot:cs.getPropertyValue('--rec').trim() || '#b42318'}; }
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, h);
+  const bw = 3, gap = 2, n = Math.floor((w + gap) / (bw + gap)), per = 2, mid = h / 2;
+  for (let i = 0; i < n; i++){
+    const end = WAVE.length - (n - 1 - i) * per; if (end <= 0) continue;
+    let v = 0; for (let k = Math.max(0, end - per); k < end; k++) v = Math.max(v, WAVE[k]);
+    const bh = Math.max(2, Math.round(v * (h - 4)));
+    x.fillStyle = i === n - 1 ? WAVE_COL.hot : WAVE_COL.base;
+    const px = i * (bw + gap), py = Math.round(mid - bh / 2);
+    if (x.roundRect){ x.beginPath(); x.roundRect(px, py, bw, bh, 1.5); x.fill(); } else x.fillRect(px, py, bw, bh);
+  }
+}
+window.addEventListener('resize', () => { WAVE_COL = null; drawWave(); });
+
 function vLecture(L){
-  if (!L) return topBar('Słucham') + '<p class="mute">Nie ma takiego wykładu.</p><button class="btn" data-act="home">Wróć</button>';
+  if (!L) return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button></header><p class="mute">Nie ma takiego wykładu.</p>';
   const tr = transcriptText(L), unfinished = L.status !== 'done';
-  return '<div class="row" style="padding:8px 0 10px"><button class="btn sm ghost" data-act="home">‹ Archiwum</button></div>' +
-    (unfinished ? '<div class="card"><b>Notatki są niepełne</b><p class="mute">Transkrypcja jest zapisana w całości. Notatki można z niej dokończyć.</p><button class="btn pri" data-act="finish" data-id="' + esc(L.id) + '">Dokończ notatki</button></div>' : '') +
-    '<div class="row" style="margin-bottom:12px"><button class="btn pri sm" data-act="share" data-id="' + esc(L.id) + '">Udostępnij</button><button class="btn sm" data-act="docx" data-id="' + esc(L.id) + '">Pobierz Word</button><button class="btn sm" data-act="copy" data-id="' + esc(L.id) + '">Kopiuj</button></div>' +
-    '<div class="card md">' + mdHtml(lectureMd(L)) + (L.summaryErr && !L.summary ? '<p class="err">Podsumowanie się nie udało: ' + esc(L.summaryErr) + '</p>' : '') + '</div>' +
-    '<details class="card"><summary>Pełna transkrypcja (' + Math.round(tr.length / 1000) + ' tys. znaków)</summary><div class="tr">' + esc(tr) + '</div></details>' +
-    '<div class="row"><button class="btn sm ghost" data-act="redo" data-id="' + esc(L.id) + '">Napisz notatki od nowa</button><button class="btn sm ghost" data-act="del" data-id="' + esc(L.id) + '">Usuń</button></div><div id="msg" class="mute" style="margin-top:10px"></div>';
+  const meta = [fmtDate(L.startedAt), fmtTime(L.startedAt), L.durationSec ? fmtDur(L.durationSec) : ''].filter(Boolean).join(' · ');
+  return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button></header>' +
+    (unfinished ? '<section class="panel notice"><h2 class="panel-title">Notatki są niepełne</h2><p>Nagranie zostało przerwane albo nie wszystko zdążyło się przetworzyć. Transkrypcja jest zapisana, więc notatki można z niej dokończyć.</p><div class="row-btns"><button class="btn pri" data-act="finish" data-id="' + esc(L.id) + '">Dokończ notatki</button></div></section>' : '') +
+    '<article class="paper">' +
+      (L.topic ? '<div class="eyebrow">' + esc(L.course) + '</div>' : '') +
+      '<h1 class="doc-title">' + esc(L.topic || L.course) + '</h1>' +
+      '<div class="doc-meta">' + esc(meta) + '</div>' +
+      '<div class="doc-actions"><button class="btn pri sm" data-act="share" data-id="' + esc(L.id) + '">' + icon('share') + 'Udostępnij</button><button class="btn sec sm" data-act="docx" data-id="' + esc(L.id) + '">' + icon('download') + 'Word</button><button class="btn sec sm" data-act="copy" data-id="' + esc(L.id) + '">' + icon('copy') + 'Kopiuj</button></div>' +
+      (L.summary ? '<div class="summary md">' + mdHtml(L.summary) + '</div>' : '') +
+      '<div class="md">' + (L.notes ? mdHtml(L.notes) : '<p class="placeholder">Brak notatek.</p>') + '</div>' +
+      (L.summaryErr && !L.summary ? '<p class="err">Podsumowanie się nie udało: ' + esc(L.summaryErr) + '</p>' : '') +
+    '</article>' +
+    '<details class="panel"><summary>' + icon('next') + 'Pełna transkrypcja <span class="count">' + Math.max(1, Math.round(tr.length / 1000)) + ' tys. znaków</span></summary><div class="tr">' + esc(tr) + '</div></details>' +
+    '<div class="quiet"><button class="btn ghost sm" data-act="redo" data-id="' + esc(L.id) + '">' + icon('redo') + 'Napisz notatki od nowa</button><button class="btn ghost sm danger" data-act="del" data-id="' + esc(L.id) + '">' + icon('trash') + 'Usuń</button></div><div id="msg" class="mute"></div>';
 }
+
 function vSettings(){
-  return '<div class="row" style="padding:8px 0 10px"><button class="btn sm ghost" data-act="home">‹ Wróć</button></div>' + topBar('Ustawienia') +
-    '<div class="card"><b>Klucz API</b><p class="mute">Domyślnie Groq: jeden klucz do transkrypcji i do notatek. Klucz tworzysz na console.groq.com/keys. Jest zapisany tylko w tej przeglądarce i wysyłany wyłącznie do adresu poniżej.</p>' +
-    '<label for="sttKey">Klucz</label><input id="sttKey" type="password" value="' + esc(CFG.sttKey) + '" placeholder="gsk_…" autocomplete="off" autocapitalize="off" spellcheck="false">' +
-    '<label for="sttBase">Adres API</label><input id="sttBase" value="' + esc(CFG.sttBase) + '" autocapitalize="off" spellcheck="false">' +
-    '<div class="row" style="margin-top:12px"><button class="btn pri" data-act="test">Zapisz i sprawdź</button></div><div id="testmsg" class="mute" style="margin-top:8px"></div></div>' +
-    '<div class="card"><b>Modele</b><label for="sttModel">Transkrypcja</label><input id="sttModel" list="sttList" value="' + esc(CFG.sttModel) + '" autocapitalize="off" spellcheck="false"><datalist id="sttList"></datalist>' +
-    '<label for="llmModel">Notatki</label><input id="llmModel" list="llmList" value="' + esc(CFG.llmModel) + '" autocapitalize="off" spellcheck="false"><datalist id="llmList"></datalist>' +
-    '<label for="every">Nowe notatki co (minuty)</label><select id="every">' + [2, 3, 4, 5].map(n => '<option' + (CFG.notesEveryMin === n ? ' selected' : '') + '>' + n + '</option>').join('') + '</select>' +
-    '<label for="amode">Format dźwięku</label><select id="amode"><option value="auto"' + (CFG.audioMode === 'auto' ? ' selected' : '') + '>Automatyczny</option><option value="mr"' + (CFG.audioMode === 'mr' ? ' selected' : '') + '>Skompresowany (mniej danych)</option><option value="wav"' + (CFG.audioMode === 'wav' ? ' selected' : '') + '>WAV (awaryjny, ok. 2 MB na minutę)</option></select>' +
-    '<details><summary>Inny dostawca do notatek</summary><label><input type="checkbox" id="llmSame" style="width:auto;min-height:0;margin-right:8px"' + (CFG.llmSame ? ' checked' : '') + '>Ten sam klucz i adres co transkrypcja</label><label for="llmBase">Adres API (zgodny z OpenAI)</label><input id="llmBase" value="' + esc(CFG.llmBase) + '" placeholder="https://openrouter.ai/api/v1" autocapitalize="off" spellcheck="false"><label for="llmKey">Klucz</label><input id="llmKey" type="password" value="' + esc(CFG.llmKey) + '" autocomplete="off"></details>' +
-    '<div class="row" style="margin-top:12px"><button class="btn" data-act="savecfg">Zapisz</button></div></div>' +
-    '<div class="card"><b>Kopia archiwum</b><p class="mute">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj lub udostępniaj od razu, a co jakiś czas zrób kopię.</p><div class="row"><button class="btn sm" data-act="export">Pobierz kopię</button><button class="btn sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></div>';
+  return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Wróć</button></header><h1 class="page-title">Ustawienia</h1>' +
+    '<section class="panel"><h2 class="panel-title">Klucz API</h2><p class="help" style="margin-top:0">Domyślnie Groq: jeden klucz do transkrypcji i notatek, tworzony na console.groq.com/keys. Klucz zostaje tylko w tej przeglądarce i jest wysyłany wyłącznie pod adres poniżej.</p>' +
+    '<label class="lbl" for="sttKey">Klucz</label><input id="sttKey" type="password" value="' + esc(CFG.sttKey) + '" placeholder="gsk_…" autocomplete="off" autocapitalize="off" spellcheck="false">' +
+    '<label class="lbl" for="sttBase">Adres API</label><input id="sttBase" value="' + esc(CFG.sttBase) + '" autocapitalize="off" spellcheck="false" inputmode="url">' +
+    '<div class="row-btns" style="margin-top:20px"><button class="btn pri" data-act="test">Zapisz i sprawdź</button></div><div id="testmsg" class="mute" style="margin-top:12px"></div></section>' +
+    '<section class="panel"><h2 class="panel-title">Notatki i transkrypcja</h2>' +
+    '<label class="lbl" for="sttModel">Model transkrypcji</label><input id="sttModel" list="sttList" value="' + esc(CFG.sttModel) + '" autocapitalize="off" spellcheck="false"><datalist id="sttList"></datalist>' +
+    '<label class="lbl" for="llmModel">Model notatek</label><input id="llmModel" list="llmList" value="' + esc(CFG.llmModel) + '" autocapitalize="off" spellcheck="false"><datalist id="llmList"></datalist>' +
+    '<label class="lbl" for="every">Nowe notatki co</label><select id="every">' + [2, 3, 4, 5].map(n => '<option value="' + n + '"' + (CFG.notesEveryMin === n ? ' selected' : '') + '>' + n + ' min</option>').join('') + '</select>' +
+    '<label class="lbl" for="amode">Format dźwięku</label><select id="amode"><option value="auto"' + (CFG.audioMode === 'auto' ? ' selected' : '') + '>Automatyczny</option><option value="mr"' + (CFG.audioMode === 'mr' ? ' selected' : '') + '>Skompresowany, mniej danych</option><option value="wav"' + (CFG.audioMode === 'wav' ? ' selected' : '') + '>WAV, awaryjny (ok. 2 MB na minutę)</option></select>' +
+    '<details style="margin-top:12px"><summary>' + icon('next') + 'Inny dostawca do notatek</summary><label class="check"><input type="checkbox" id="llmSame"' + (CFG.llmSame ? ' checked' : '') + '>Ten sam klucz i adres co transkrypcja</label><label class="lbl" for="llmBase">Adres API zgodny z OpenAI</label><input id="llmBase" value="' + esc(CFG.llmBase) + '" placeholder="https://openrouter.ai/api/v1" autocapitalize="off" spellcheck="false"><label class="lbl" for="llmKey">Klucz</label><input id="llmKey" type="password" value="' + esc(CFG.llmKey) + '" autocomplete="off" autocapitalize="off" spellcheck="false"></details>' +
+    '<div class="row-btns" style="margin-top:20px"><button class="btn sec" data-act="savecfg">Zapisz</button></div></section>' +
+    '<section class="panel"><h2 class="panel-title">Kopia archiwum</h2><p class="help" style="margin-top:0">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj od razu, a co jakiś czas zrób kopię.</p><div class="row-btns" style="margin-top:16px"><button class="btn sec sm" data-act="export">' + icon('download') + 'Pobierz kopię</button><button class="btn sec sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></section>';
 }
+
 function readSettingsForm(){
   const v = id => { const e = $('#' + id); return e ? e.value.trim() : null; };
   if (v('sttKey') !== null) CFG.sttKey = v('sttKey'); if (v('sttBase')) CFG.sttBase = v('sttBase').replace(/\/+$/, '');
@@ -603,7 +782,7 @@ document.addEventListener('click', async ev => {
   else if (act === 'stop') stopRecording();
   else if (act === 'skipq'){ if (R) R.dropQueue = true; }
   else if (act === 'blackout') $('#blackout').classList.add('on');
-  else if (act === 'tab'){ R.tab = b.dataset.tab; $('#notes').hidden = R.tab !== 'notes'; $('#tr').hidden = R.tab !== 'tr'; document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x.dataset.tab === R.tab)); }
+  else if (act === 'tab'){ R.tab = b.dataset.tab; $('#notes').hidden = R.tab !== 'notes'; $('#tr').hidden = R.tab !== 'tr'; document.querySelectorAll('.seg button').forEach(x => x.classList.toggle('on', x.dataset.tab === R.tab)); }
   else if (act === 'open') go('lecture', b.dataset.id);
   else if (act === 'share' && L) shareLecture(L);
   else if (act === 'docx' && L) saveBlob(buildDocx(lectureMd(L)), fileBase(L) + '.docx');
