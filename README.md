@@ -25,7 +25,7 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 - Ekran przedmiotu: skrypt z wszystkich wykładów w jednym pliku Word (spis treści, słownik pojęć, przepisy), słownik pojęć, terminy, powtórka i lista wykładów.
 - Fiszki z powtarzaniem: „Umiem” odsuwa pytanie o 1, 3, 7, 14 i 30 dni, „Jeszcze nie” zostawia je na dziś.
 - Pytanie do notatek wykładu albo całego przedmiotu; odpowiedź tylko z notatek, ze wskazaniem, skąd pochodzi.
-- Terminy zapowiedziane na wykładzie (kolokwia, egzaminy, oddanie prac) z dodaniem do kalendarza; najbliższe są na ekranie głównym.
+- Kalendarz w aplikacji (ikona na ekranie głównym). Wydarzenia zapowiedziane na wykładzie (kolokwia, egzaminy, oddanie prac, przeniesione zajęcia, konsultacje) dopisują się same w trakcie nagrywania, z datą liczoną od dnia wykładu i godziną, jeśli padła. Własne wydarzenia dodaje się ręcznie na wybrany dzień i godzinę, z przedmiotem i notatką. Każde wydarzenie można poprawić, usunąć albo jednym stuknięciem dodać do kalendarza iPhone'a; najbliższe są na ekranie głównym.
 
 ## Pierwsze uruchomienie
 

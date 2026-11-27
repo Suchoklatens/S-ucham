@@ -278,6 +278,32 @@ body.has-player #app{padding-bottom:96px}
 .study-q{font-size:19px;line-height:27px;color:var(--ink);margin:4px 0 20px}
 .study-a{font-size:16px;line-height:24px;color:var(--ink2);padding:16px 0 20px;border-top:1px solid var(--line)}
 .study-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.top-btns{display:flex;gap:4px}
+.icon-btn.flip svg{transform:scaleX(-1)}
+.sec-head .btn.ghost.sm{margin-left:auto;padding:0 8px;min-height:32px}
+.ev{gap:4px}
+.ev-hit{flex:1;min-width:0;display:flex;align-items:center;gap:12px;background:none;border:0;padding:0;font:inherit;text-align:left;cursor:pointer;color:inherit}
+.cal-title{margin-bottom:12px}
+.cal{padding:12px 12px 8px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.cal-month{font:500 17px/24px var(--sans);color:var(--ink);text-transform:capitalize}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-w{font-size:12px;line-height:24px;text-align:center;color:var(--ink3)}
+.cal-d{position:relative;height:44px;border:0;border-radius:10px;background:none;font:400 15px/20px var(--sans);color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-variant-numeric:tabular-nums}
+.cal-d.out{color:var(--ink3);opacity:.55}
+.cal-d:hover{background:var(--raised)}
+.cal-d.today span{color:var(--rec);font-weight:600}
+.cal-d.sel{background:var(--pri-bg);color:var(--pri-ink)}
+.cal-d.sel.today span{color:var(--pri-ink)}
+.cal-d i{display:flex;gap:3px;height:4px}
+.cal-d i b{width:4px;height:4px;border-radius:50%;background:var(--ink2)}
+.cal-d.sel i b{background:var(--pri-ink)}
+.cal-today{display:block;margin:6px auto 0}
+.cal-empty{margin:0 0 12px}
+.ev-dt{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+.ev-src{margin-bottom:12px}
+.ev-src .linkish{color:var(--ink);font-size:15px;line-height:22px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
 </style>
 </head>
 <body>
@@ -615,7 +641,8 @@ Forma:
 - Nie uzupełniaj wyliczeń. Jeśli wykładowca zapowiada na przykład trzy elementy, a w tym fragmencie padły dwa, zapisz dwa. Jeśli fragment kontynuuje wyliczenie z końcówki notatek, kontynuuj je zamiast zaczynać nowe.
 - Nie powtarzaj tego, co już jest w notatkach. Jeśli fragment ciągnie ostatni temat, dopisz same punkty bez nagłówka. Jeśli wykładowca wraca do tematu, który ma już nagłówek na liście, użyj dokładnie tego samego nagłówka (aplikacja połączy te części) i zapisz tylko nowe informacje.
 - Tekst między ⟦WAŻNE⟧ a ⟦/WAŻNE⟧ użytkownik oznaczył w trakcie wykładu jako ważny. Zapisz z niego wszystkie konkretne informacje i zacznij każdy taki punkt od **Ważne:**. Samych znaczników nie przepisuj.
-- Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej albo wszystko już jest w notatkach, zwróć dokładnie: BRAK`;
+- Jeśli w tym fragmencie wykładowca zapowiada konkretne wydarzenie (kolokwium, egzamin, termin oddania pracy, odwołane albo przeniesione zajęcia, konsultacje, dodatkowe zajęcia), zapisz je normalnie w notatkach, a dodatkowo na samym końcu odpowiedzi dopisz osobną linię: @termin RRRR-MM-DD GG:MM | krótki opis. Datę ustal na podstawie daty wykładu, także gdy padło na przykład „za tydzień” albo „w przyszły czwartek”. Godzinę pomiń, jeśli nie padła. Gdy dzień nie padł, napisz „@termin bez daty | opis”. Nie twórz takich linii dla wydarzeń, które już minęły, ani dla przykładów z wykładu.
+- Zwróć wyłącznie ciąg dalszy notatek, bez wstępów i komentarzy. Jeśli fragment nie zawiera treści merytorycznej ani terminów, albo wszystko już jest w notatkach, zwróć dokładnie: BRAK`;
 const SYS_SUM = `Dostajesz notatki z jednego wykładu. Korzystaj wyłącznie z nich: nie dodawaj definicji, pojęć ani faktów, których w notatkach nie ma. Odpowiedz po polsku dokładnie w tym układzie, bez pogrubień w pierwszej linii:
 TEMAT: <temat wykładu w maksymalnie 8 słowach>
 ## Najważniejsze
@@ -623,10 +650,11 @@ TEMAT: <temat wykładu w maksymalnie 8 słowach>
 ## Do zapamiętania
 - definicje i terminy, które padły w notatkach, zapowiedzi egzaminu i kolokwiów oraz zalecana literatura; każdy punkt notatek zaczynający się od **Ważne:** musi się tu znaleźć; jeśli nic takiego nie ma, pomiń całą tę sekcję
 ## Terminy
-- RRRR-MM-DD | opis: tylko zapowiedziane w notatkach kolokwia, egzaminy, terminy oddania prac i inne wydarzenia z datą; datę ustal na podstawie daty wykładu, a jeśli dzień nie padł, napisz „bez daty | opis”; jeśli żadnych terminów nie było, pomiń całą tę sekcję`;
+- RRRR-MM-DD GG:MM | opis (godzinę pomiń, jeśli nie padła): tylko zapowiedziane w notatkach kolokwia, egzaminy, terminy oddania prac i inne wydarzenia z datą; datę ustal na podstawie daty wykładu, a jeśli dzień nie padł, napisz „bez daty | opis”; jeśli żadnych terminów nie było, pomiń całą tę sekcję`;
 function notesUser(L, take){
   const heads = [...String(L.notes || '').matchAll(/^#{1,3}\s+(.+)$/gm)].map(m => '- ' + m[1].trim());
-  return 'Przedmiot: ' + L.course +
+  const ld = new Date(L.startedAt);
+  return 'Przedmiot: ' + L.course + '\nData wykładu: ' + ymd(ld) + ' (' + ld.toLocaleDateString('pl-PL', {weekday:'long'}) + ')' +
     '\n\nNagłówki już w notatkach:\n' + (heads.length ? heads.join('\n') : '(jeszcze brak)') +
     '\n\nKońcówka dotychczasowych notatek (tylko dla ciągłości):\n"""\n' + (L.notes ? L.notes.slice(-1200) : '(jeszcze brak)') + '\n"""' +
     '\n\nNowy fragment transkrypcji:\n"""\n' + take.trim() + '\n"""';
@@ -709,6 +737,9 @@ async function maybeNotes(force){
       try { add = await chat(SYS_NOTES, user); R.notesErr = ''; }
       catch (e){ R.notesErr = e.message; uiStatus(); R.notesHold = Date.now() + (e.daily ? 3600000 : Math.max((e.retryAfter || 0) * 1000, 15000)); if (force && (R.notesTries = (R.notesTries || 0) + 1) < 4){ await sleep(Math.max((e.retryAfter || 0) * 1000, 2500)); continue; } break; }
       L.notedChars = (L.notedChars || 0) + take.length; R.lastNotesAt = Date.now();
+      const sp = splitEvents(add); add = sp.notes;
+      const fresh = addAutoEvents(L, sp.events);
+      if (fresh.length){ R.events = (R.events || 0) + fresh.length; const e = fresh[0]; toast('W kalendarzu: ' + (e.date ? evDate(e.date).toLocaleDateString('pl-PL', {day:'numeric', month:'short'}) + (e.time ? ' ' + e.time : '') : 'bez daty') + ' – ' + e.text + (fresh.length > 1 ? ' (+' + (fresh.length - 1) + ')' : ''), 4500); }
       if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
       await DB.put(L); uiNotes(); uiStatus();
     }
@@ -738,8 +769,7 @@ async function summarize(L){
     let sum = out.replace(TOPIC_RE, '').trim();
     const tm = sum.match(/^#{1,3}\s*Terminy\s*$([\s\S]*?)(?=^#{1,3}\s|(?![\s\S]))/mi);
     if (tm){
-      L.events = tm[1].split('\n').map(x => x.match(/^\s*[-*•]\s*(\d{4}-\d{2}-\d{2}|bez daty)\s*[|–-]\s*(.+)$/i)).filter(Boolean)
-        .map(m => ({date:/^\d/.test(m[1]) ? m[1] : '', text:m[2].replace(/[*_]+/g, '').trim()})).slice(0, 12);
+      addAutoEvents(L, tm[1].split('\n').map(x => parseEvLine(x, false)).filter(Boolean).slice(0, 12));
       sum = sum.replace(tm[0], '').trim();
     }
     L.summary = sum;
@@ -995,6 +1025,7 @@ const ICONS = {
   search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
   cap:'<path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/>',
   x:'<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  plus:'<path d="M5 12h14"/><path d="M12 5v14"/>',
   camera:'<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
   calendar:'<rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/>',
   book:'<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/>',
@@ -1023,6 +1054,8 @@ function render(){
   else if (VIEW.name === 'edit') html = vEdit(LECT.find(l => l.id === VIEW.arg));
   else if (VIEW.name === 'quiz') html = vQuiz(VIEW.arg);
   else if (VIEW.name === 'course') html = vCourse(VIEW.arg);
+  else if (VIEW.name === 'cal') html = vCal();
+  else if (VIEW.name === 'evform') html = vEvForm(VIEW.arg);
   else if (VIEW.name === 'settings') html = vSettings();
   else html = vHome();
   a.innerHTML = '<div class="view">' + html + '</div>';
@@ -1043,7 +1076,7 @@ function backupDue(){
 function vHome(){
   const courses = Object.keys(CFG.courses), cur = CFG.lastCourse || '';
   const ready = CFG.sttKey && (CFG.llmSame || CFG.llmKey);
-  const head = '<header class="top"><span class="brand"><span class="rec-dot" aria-hidden="true"></span>słuch&#39;am</span><button class="icon-btn" data-act="settings" aria-label="Ustawienia">' + icon('settings') + '</button></header>';
+  const head = '<header class="top"><span class="brand"><span class="rec-dot" aria-hidden="true"></span>słuch&#39;am</span><span class="top-btns"><button class="icon-btn" data-act="cal" aria-label="Kalendarz">' + icon('calendar') + '</button><button class="icon-btn" data-act="settings" aria-label="Ustawienia">' + icon('settings') + '</button></span></header>';
   const hint = isStandalone()
     ? 'Połóż telefon ekranem do góry, jak najbliżej wykładowcy. Nie blokuj ekranu: w aplikacji z ekranu początkowego iPhone wycisza wtedy mikrofon. Telefon przyciemnisz przyciskiem z księżycem.'
     : 'Połóż telefon ekranem do góry, jak najbliżej wykładowcy. W Safari nagrywanie zwykle trwa też po zablokowaniu ekranu, ale sprawdź to najpierw na krótkiej próbie.';
@@ -1062,9 +1095,8 @@ function vHome(){
   const lectCourses = [...new Set(LECT.map(l => l.course))];
   const tools = LECT.length ? '<div class="arch-tools"><label class="search">' + icon('search') + '<input id="q" type="search" placeholder="Szukaj w notatkach" value="' + esc(FILTER.q) + '" autocomplete="off" enterkeyhint="search"></label>' +
     (lectCourses.length > 1 ? '<div class="chips" role="tablist"><button class="chip' + (!FILTER.course ? ' on' : '') + '" data-act="fcourse" data-c="">Wszystkie</button>' + lectCourses.map(c => '<button class="chip' + (FILTER.course === c ? ' on' : '') + '" data-act="fcourse" data-c="' + esc(c) + '">' + esc(c) + '</button>').join('') + '</div>' : '') + '</div>' : '';
-  const today = new Date().toISOString().slice(0, 10);
-  const upcoming = LECT.flatMap(l => (l.events || []).map((e, i) => ({...e, l, i}))).filter(e => e.date && e.date >= today).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 5);
-  const events = !R && upcoming.length ? '<div class="sec-head"><h2>Nadchodzące terminy</h2></div><div class="list">' + upcoming.map(e => eventRow(e, false)).join('') + '</div>' : '';
+  const upcoming = upcomingEvents(5);
+  const events = !R && upcoming.length ? '<div class="sec-head"><h2>Nadchodzące terminy</h2><button class="btn ghost sm" data-act="cal">' + icon('calendar') + 'Kalendarz</button></div><div class="list">' + upcoming.map(e => eventRow(e, false)).join('') + '</div>' : '';
   return head + main + backup + events + '<div class="sec-head"><h2>Archiwum</h2>' + (LECT.length ? '<span class="count" id="acount">' + LECT.length + '</span>' : '') + '</div>' + tools + '<div id="arch">' + archiveHtml() + '</div>';
 }
 function snippet(text, q){
@@ -1118,6 +1150,7 @@ function uiStatus(){
   const parts = [R.done + ' ' + plural(R.done, 'fragment', 'fragmenty', 'fragmentów')];
   if (R.queue.length) parts.push(R.queue.length + ' w kolejce');
   if (R.marks) parts.push(R.marks + ' ' + plural(R.marks, 'oznaczony', 'oznaczone', 'oznaczonych'));
+  if (R.events) parts.push(R.events + ' ' + plural(R.events, 'termin', 'terminy', 'terminów'));
   if (R.photos) parts.push(R.photos + ' ' + plural(R.photos, 'zdjęcie', 'zdjęcia', 'zdjęć'));
   if (R.failed) parts.push(R.failed + ' ' + plural(R.failed, 'pominięty', 'pominięte', 'pominiętych'));
   if (R.notesBusy) parts.push('piszę notatki');
@@ -1173,7 +1206,7 @@ function vLecture(L){
       (gaps.length ? '<div class="gap-note">Przerwy w nagraniu: ' + gaps.length + ' (razem ' + fmtDur(gapSec) + '). Ekran był wtedy zablokowany albo aplikacja w tle.</div>' : '') +
       '<div class="doc-actions"><button class="btn pri sm" data-act="share" data-id="' + esc(L.id) + '">' + icon('share') + 'Udostępnij</button><button class="btn sec sm" data-act="docx" data-id="' + esc(L.id) + '">' + icon('download') + 'Word</button><button class="btn sec sm" data-act="copy" data-id="' + esc(L.id) + '">' + icon('copy') + 'Kopiuj</button></div>' +
       (L.summary ? '<div class="summary md">' + mdHtml(L.summary) + '</div>' : '') +
-      ((L.events || []).length ? '<div class="events"><div class="mini-h">Terminy z wykładu</div>' + L.events.map((e, i) => eventRow({...e, l:L, i}, true)).join('') + '</div>' : '') +
+      ((L.events || []).length ? '<div class="events"><div class="mini-h">Terminy z wykładu</div>' + L.events.slice().sort(evSort).map(e => eventRow({...e, l:L, course:L.course}, true)).join('') + '</div>' : '') +
       '<div class="md">' + (L.notes ? mdHtml(tidyNotes(L.notes)) : '<p class="placeholder">Brak notatek.</p>') + '</div>' +
       (laws.length ? '<div class="laws"><div class="mini-h">Przywołane przepisy</div>' + lawChips(laws) + '</div>' : '') +
       (L.summaryErr && !L.summary ? '<p class="err">Podsumowanie się nie udało: ' + esc(L.summaryErr) + '</p>' : '') +
@@ -1204,12 +1237,6 @@ function transcriptRows(L, hasAudio){
   return rows.join('') || '<p class="mute">Brak transkrypcji.</p>';
 }
 const photoRow = ph => '<button class="tphoto" data-act="viewphoto" data-key="' + esc(ph.key) + '"><span class="tt">' + fmtDur(ph.t) + '</span><img src="' + ph.url + '" alt="Zdjęcie z ' + fmtDur(ph.t) + '"></button>';
-function eventRow(e, inLecture){
-  const d = e.date ? new Date(e.date + 'T12:00:00') : null;
-  const when = d ? esc(d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'})) + '<span>' + esc(d.toLocaleDateString('pl-PL', {weekday:'long'})) + '</span>' : 'bez daty';
-  return '<div class="ev"><div class="ev-when' + (d ? '' : ' nodate') + '">' + when + '</div><div class="ev-main"><div class="ev-text">' + esc(e.text) + '</div>' + (inLecture ? '' : '<div class="ev-sub">' + esc(e.l.course) + '</div>') + '</div>' +
-    (d ? '<button class="icon-btn sm" data-act="ics" data-id="' + esc(e.l.id) + '" data-i="' + e.i + '" aria-label="Dodaj do kalendarza">' + icon('calendar') + '</button>' : '') + '</div>';
-}
 
 /* ---------- photos taken during the lecture ---------- */
 const PHOTO_CACHE = {};
@@ -1337,20 +1364,6 @@ function lectureDocx(L){
   return buildDocx(md, images);
 }
 
-/* ---------- calendar ---------- */
-function hashStr(t){ let h = 0; for (const ch of String(t)) h = (h * 31 + ch.charCodeAt(0)) | 0; return h; }
-function icsFile(e, L){
-  const d = e.date.replace(/-/g, ''), next = new Date(e.date + 'T12:00:00'); next.setDate(next.getDate() + 1);
-  const n = next.getFullYear() + String(next.getMonth() + 1).padStart(2, '0') + String(next.getDate()).padStart(2, '0');
-  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
-  const q = t => String(t).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
-  const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//slucham//PL', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
-    'UID:' + L.id + '-' + d + '-' + Math.abs(hashStr(e.text)) + '@slucham', 'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + d, 'DTEND;VALUE=DATE:' + n,
-    'SUMMARY:' + q(L.course + ': ' + e.text), 'DESCRIPTION:' + q('Zapowiedziane na wykładzie ' + fmtDate(L.startedAt) + '. Sprawdź w transkrypcji.'),
-    'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:' + q(e.text), 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
-  return new Blob([body], {type:'text/calendar'});
-}
-
 /* ---------- questions to the notes ---------- */
 const ASK = {};
 const SYS_ASK = `Odpowiadasz na pytanie studenta wyłącznie na podstawie jego notatek z wykładów. Jeśli w notatkach nie ma odpowiedzi, napisz dokładnie: „W notatkach tego nie ma.” i nie dodawaj nic z własnej wiedzy. Odpowiedz po polsku, krótko: najwyżej 6 zdań albo punktów. Na końcu w nawiasie podaj, z której części notatek pochodzi odpowiedź (nagłówek, a przy kilku wykładach także datę wykładu).`;
@@ -1373,7 +1386,7 @@ function vCourse(c){
   const ls = courseLectures(c), withNotes = ls.filter(l => l.notes);
   const total = ls.reduce((a, l) => a + (l.durationSec || 0), 0);
   const terms = extractTerms(withNotes), laws = extractLaws(withNotes.map(l => (l.summary || '') + '\n' + (l.notes || '')).join('\n'));
-  const evs = ls.flatMap(l => (l.events || []).map((e, i) => ({...e, l, i}))).sort((a, b) => (a.date || '9').localeCompare(b.date || '9'));
+  const evs = ls.flatMap(l => (l.events || []).map(e => ({...e, l, course:l.course}))).sort(evSort);
   const cc = CFG.courses[c] || {}, none = withNotes.length ? '' : ' disabled';
   return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button></header>' +
     '<div class="eyebrow">Przedmiot</div><h1 class="page-title course-title">' + esc(c) + '</h1>' +
@@ -1456,6 +1469,192 @@ function quizMd(arg){
   return '# Powtórka: ' + T.title + '\n\n*' + T.sub + '*\n\n' + q.items.map((it, i) => '## ' + (i + 1) + '. ' + it.q + '\n' + it.a).join('\n\n');
 }
 
+/* ================= calendar ================= */
+const pad2 = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+const todayYmd = () => ymd(new Date());
+const evDate = s => new Date(s + 'T12:00:00');
+const newEvId = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const MONTHS = ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'];
+const WDAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+
+// one line of an event from the model: "@termin 2027-01-15 10:00 | kolokwium" (notes) or "- 2027-01-15 | kolokwium" (summary)
+function parseEvLine(line, needTag){
+  const re = needTag
+    ? /^\s*[-*•]?\s*@termin\s*:?\s*(\d{4}-\d{2}-\d{2}|bez daty)(?:\s*,?\s*(?:godz\.?\s*)?(\d{1,2})[:.](\d{2}))?\s*\|\s*(.+)$/i
+    : /^\s*[-*•]\s*(?:@termin\s*:?\s*)?(\d{4}-\d{2}-\d{2}|bez daty)(?:\s*,?\s*(?:godz\.?\s*)?(\d{1,2})[:.](\d{2}))?\s*\|\s*(.+)$/i;
+  const m = String(line).match(re); if (!m) return null;
+  const text = m[4].replace(/[*_]+/g, '').trim(); if (text.length < 3) return null;
+  const date = /^\d/.test(m[1]) ? m[1] : '';
+  if (date && isNaN(evDate(date))) return null;
+  const h = m[2] ? parseInt(m[2], 10) : -1;
+  return {date, time:h >= 0 && h < 24 ? pad2(h) + ':' + m[3] : '', text:text.slice(0, 160)};
+}
+function splitEvents(add){
+  const events = [], keep = [];
+  for (const line of String(add || '').split('\n')){
+    if (/@termin/i.test(line)){ const e = parseEvLine(line, true); if (e) events.push(e); continue; }
+    keep.push(line);
+  }
+  return {notes:keep.join('\n').trim(), events};
+}
+const evWords = t => new Set(fold(t).split(/[^a-z0-9]+/).filter(w => w.length > 3));
+function sameEvent(a, b){
+  if ((a.date || '') !== (b.date || '')) return false;
+  const A = evWords(a.text), B = evWords(b.text); if (!A.size || !B.size) return fold(a.text) === fold(b.text);
+  let n = 0; A.forEach(w => { if (B.has(w)) n++; });
+  return n / Math.min(A.size, B.size) >= 0.5;
+}
+// adds events found by the model to a lecture, skipping duplicates and ones the user deleted
+function addAutoEvents(L, list){
+  L.events = L.events || []; const added = [];
+  for (const e of list){
+    if ((L.dismissed || []).some(d => sameEvent(d, e))) continue;
+    // an undated event that later gets a date: update it instead of adding a second one
+    const same = L.events.find(x => sameEvent(x, e)) || (e.date ? L.events.find(x => !x.date && sameEvent({...x, date:e.date}, e)) : null);
+    if (same){ if (!same.edited){ if (!same.date && e.date) same.date = e.date; if (!same.time && e.time) same.time = e.time; } continue; }
+    const ev = {id:newEvId(), date:e.date, time:e.time || '', text:e.text, src:'auto'};
+    L.events.push(ev); added.push(ev);
+  }
+  if (L.events.length > 30) L.events = L.events.slice(-30);
+  return added;
+}
+function normalizeEvents(L){
+  let ch = false;
+  for (const e of (L.events || [])){ if (!e.id){ e.id = newEvId(); e.src = e.src || 'auto'; e.time = e.time || ''; ch = true; } }
+  return ch;
+}
+function allEvents(){
+  LECT.forEach(normalizeEvents);
+  return [...LECT.flatMap(l => (l.events || []).map(e => ({...e, l, course:l.course}))), ...(CFG.events || []).map(e => ({...e}))];
+}
+function findEvent(id){
+  for (const l of LECT){ const e = (l.events || []).find(x => x.id === id); if (e) return {e, L:l}; }
+  const e = (CFG.events || []).find(x => x.id === id); return e ? {e, L:null} : null;
+}
+const evSort = (a, b) => (a.date || '9999').localeCompare(b.date || '9999') || (a.time || '99').localeCompare(b.time || '99');
+function upcomingEvents(n){ const t = todayYmd(); return allEvents().filter(e => e.date && e.date >= t).sort(evSort).slice(0, n); }
+
+function eventRow(e, inLecture){
+  const d = e.date ? evDate(e.date) : null, isToday = e.date === todayYmd();
+  const when = d ? esc(isToday ? 'dziś' : d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'})) + '<span>' + esc(e.time || (isToday ? 'cały dzień' : d.toLocaleDateString('pl-PL', {weekday:'long'}))) + '</span>' : 'bez daty';
+  const sub = inLecture ? (e.time ? '' : '') : [e.course, e.src === 'manual' ? 'dodane ręcznie' : ''].filter(Boolean).join(' · ');
+  return '<div class="ev"><button class="ev-hit" data-act="evedit" data-ev="' + esc(e.id) + '"><div class="ev-when' + (d ? '' : ' nodate') + '">' + when + '</div><div class="ev-main"><div class="ev-text">' + esc(e.text) + '</div>' + (sub ? '<div class="ev-sub">' + esc(sub) + '</div>' : '') + '</div></button>' +
+    (d ? '<button class="icon-btn sm" data-act="ics" data-ev="' + esc(e.id) + '" aria-label="Dodaj do kalendarza iPhone&#39;a">' + icon('calendar') + '</button>' : '') + '</div>';
+}
+
+/* ---------- file for the iPhone calendar ---------- */
+function icsFile(e, L){
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '');
+  const q = t => String(t).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
+  const d = e.date.replace(/-/g, ''), lines = [];
+  if (e.time){
+    const s = new Date(e.date + 'T' + e.time + ':00'), en = new Date(s.getTime() + 90 * 60000);
+    const f = x => ymd(x).replace(/-/g, '') + 'T' + pad2(x.getHours()) + pad2(x.getMinutes()) + '00';
+    lines.push('DTSTART:' + f(s), 'DTEND:' + f(en));
+  } else {
+    const n = evDate(e.date); n.setDate(n.getDate() + 1);
+    lines.push('DTSTART;VALUE=DATE:' + d, 'DTEND;VALUE=DATE:' + ymd(n).replace(/-/g, ''));
+  }
+  const course = e.course || (L && L.course) || '';
+  const desc = e.note || (L ? 'Zapowiedziane na wykładzie ' + fmtDate(L.startedAt) + '. Sprawdź w transkrypcji.' : '');
+  const alarm = tr => ['BEGIN:VALARM', 'TRIGGER:' + tr, 'ACTION:DISPLAY', 'DESCRIPTION:' + q(e.text), 'END:VALARM'];
+  const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//slucham//PL', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT',
+    'UID:' + e.id + '@slucham', 'DTSTAMP:' + stamp, ...lines,
+    'SUMMARY:' + q((course ? course + ': ' : '') + e.text), ...(desc ? ['DESCRIPTION:' + q(desc)] : []),
+    ...(e.time ? [...alarm('-PT1H'), ...alarm('-P1D')] : alarm('-PT15H')), 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+  return new Blob([body], {type:'text/calendar'});
+}
+function addToCalendar(id){
+  const f = findEvent(id); if (!f || !f.e.date){ toast('Najpierw ustal dzień tego wydarzenia'); return; }
+  const e = {...f.e, course:f.e.course || (f.L && f.L.course)};
+  const blob = icsFile(e, f.L), name = ((e.course ? e.course + ' ' : '') + e.date).replace(/[\\/:*?"<>|]+/g, ' ') + '.ics';
+  if (isIOS){ blob.text().then(t => { location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(t); }); return; }
+  saveBlob(blob, name);
+}
+
+/* ---------- calendar screen ---------- */
+const CAL = {y:0, m:0, sel:''};
+function calOpen(date){
+  const d = date ? evDate(date) : new Date();
+  CAL.y = d.getFullYear(); CAL.m = d.getMonth(); CAL.sel = date || todayYmd();
+  go('cal');
+}
+function vCal(){
+  if (!CAL.sel) { const d = new Date(); CAL.y = d.getFullYear(); CAL.m = d.getMonth(); CAL.sel = todayYmd(); }
+  const evs = allEvents(), byDay = {};
+  evs.forEach(e => { if (e.date) (byDay[e.date] = byDay[e.date] || []).push(e); });
+  const first = new Date(CAL.y, CAL.m, 1), start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));
+  const today = todayYmd(), cells = [];
+  for (let i = 0; i < 42; i++){
+    const d = new Date(start); d.setDate(start.getDate() + i); const k = ymd(d), n = (byDay[k] || []).length;
+    if (i === 35 && d.getMonth() !== CAL.m) break;
+    cells.push('<button class="cal-d' + (d.getMonth() !== CAL.m ? ' out' : '') + (k === today ? ' today' : '') + (k === CAL.sel ? ' sel' : '') + '" data-act="calday" data-d="' + k + '" aria-label="' + esc(d.toLocaleDateString('pl-PL', {day:'numeric', month:'long'})) + (n ? ', wydarzenia: ' + n : '') + '"><span>' + d.getDate() + '</span>' + (n ? '<i>' + '<b></b>'.repeat(Math.min(3, n)) + '</i>' : '') + '</button>');
+  }
+  const sel = (byDay[CAL.sel] || []).sort(evSort), sd = evDate(CAL.sel);
+  const undated = evs.filter(e => !e.date);
+  const next = evs.filter(e => e.date && e.date > CAL.sel).sort(evSort).slice(0, 5);
+  return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Archiwum</button><button class="btn pri sm" data-act="evnew">' + icon('plus') + 'Dodaj</button></header>' +
+    '<h1 class="page-title cal-title">Kalendarz</h1>' +
+    '<section class="panel cal"><div class="cal-nav"><button class="icon-btn" data-act="calprev" aria-label="Poprzedni miesiąc">' + icon('back') + '</button><div class="cal-month">' + MONTHS[CAL.m] + ' ' + CAL.y + '</div><button class="icon-btn flip" data-act="calnext" aria-label="Następny miesiąc">' + icon('back') + '</button></div>' +
+      '<div class="cal-grid">' + WDAYS.map(w => '<div class="cal-w">' + w + '</div>').join('') + cells.join('') + '</div>' +
+      (CAL.sel !== today || CAL.m !== new Date().getMonth() ? '<button class="btn ghost sm cal-today" data-act="caltoday">Dziś</button>' : '') + '</section>' +
+    '<div class="sec-head"><h2>' + esc(sd.toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long'}).replace(/^./, c => c.toUpperCase())) + '</h2></div>' +
+    (sel.length ? '<div class="list">' + sel.map(e => eventRow(e, false)).join('') + '</div>' : '<p class="mute cal-empty">Nic zaplanowanego.</p>') +
+    '<button class="btn sec wide" data-act="evnew" data-d="' + CAL.sel + '">' + icon('plus') + 'Dodaj wydarzenie na ten dzień</button>' +
+    (next.length ? '<div class="sec-head"><h2>Później</h2></div><div class="list">' + next.map(e => eventRow(e, false)).join('') + '</div>' : '') +
+    (undated.length ? '<div class="sec-head"><h2>Bez daty</h2><span class="count">' + undated.length + '</span></div><p class="help" style="margin:-4px 0 8px">Padły na wykładzie bez dnia. Stuknij, żeby ustalić datę.</p><div class="list">' + undated.map(e => eventRow(e, false)).join('') + '</div>' : '') +
+    '<p class="help">Wydarzenia z wykładów dopisują się same w trakcie nagrywania. Ikona kalendarza przy wydarzeniu dodaje je do kalendarza iPhone&#39;a.</p>';
+}
+function vEvForm(arg){
+  arg = arg || {};
+  const f = arg.id ? findEvent(arg.id) : null, e = f ? f.e : {date:arg.date || CAL.sel || todayYmd(), time:'', text:'', course:'', note:''};
+  if (arg.id && !f) return '<header class="top"><button class="back" data-act="cal">' + icon('back') + 'Kalendarz</button></header><p class="mute">Tego wydarzenia już nie ma.</p>';
+  const L = f && f.L, courses = [...new Set([...Object.keys(CFG.courses), ...LECT.map(l => l.course)])];
+  return '<header class="top"><button class="back" data-act="cal">' + icon('back') + 'Kalendarz</button></header>' +
+    '<h1 class="page-title">' + (f ? 'Wydarzenie' : 'Nowe wydarzenie') + '</h1>' +
+    (L ? '<section class="panel tight ev-src"><div class="mini-h">Z wykładu</div><button class="linkish" data-act="open" data-id="' + esc(L.id) + '">' + esc((L.topic || L.course) + ' · ' + fmtDate(L.startedAt)) + '</button></section>' : '') +
+    '<section class="panel">' +
+      '<label class="lbl first" for="ev-text">Co</label><input id="ev-text" value="' + esc(e.text) + '" placeholder="np. Kolokwium z części ogólnej" autocomplete="off">' +
+      '<div class="ev-dt"><div><label class="lbl" for="ev-date">Dzień</label><input id="ev-date" type="date" value="' + esc(e.date || '') + '"></div>' +
+      '<div><label class="lbl" for="ev-time">Godzina</label><input id="ev-time" type="time" value="' + esc(e.time || '') + '"></div></div>' +
+      '<p class="help" style="margin:6px 0 0">Bez godziny wydarzenie jest całodniowe.</p>' +
+      (L ? '' : '<label class="lbl" for="ev-course">Przedmiot</label><input id="ev-course" list="ev-courses" value="' + esc(e.course || '') + '" placeholder="opcjonalnie" autocomplete="off"><datalist id="ev-courses">' + courses.map(c => '<option value="' + esc(c) + '">').join('') + '</datalist>') +
+      '<label class="lbl" for="ev-note">Notatka</label><textarea id="ev-note" rows="3" placeholder="opcjonalnie, np. sala, zakres materiału">' + esc(e.note || '') + '</textarea>' +
+      '<div class="row-btns" style="margin-top:20px"><button class="btn pri" data-act="evsave"' + (f ? ' data-ev="' + esc(e.id) + '"' : '') + '>Zapisz</button>' +
+        (f && e.date ? '<button class="btn sec" data-act="ics" data-ev="' + esc(e.id) + '">' + icon('calendar') + 'Do kalendarza iPhone&#39;a</button>' : '') + '</div>' +
+      '<div id="evmsg" class="err"></div></section>' +
+    (f ? '<div class="quiet"><button class="btn ghost sm danger" data-act="evdel" data-ev="' + esc(e.id) + '">' + icon('trash') + 'Usuń wydarzenie</button></div>' : '');
+}
+async function saveEvent(id){
+  const text = $('#ev-text').value.trim(), date = $('#ev-date').value, time = $('#ev-time').value, note = $('#ev-note').value.trim();
+  const msg = $('#evmsg');
+  if (!text){ msg.textContent = 'Wpisz, co to za wydarzenie.'; $('#ev-text').focus(); return; }
+  const f = id ? findEvent(id) : null;
+  if (!date && !(f && f.L)){ msg.textContent = 'Wybierz dzień.'; return; }
+  if (f && f.L){
+    Object.assign(f.e, {text, date, time, note, edited:true}); await DB.put(f.L);
+  } else {
+    const course = (($('#ev-course') || {}).value || '').trim();
+    CFG.events = CFG.events || [];
+    if (f) Object.assign(f.e, {text, date, time, note, course});
+    else CFG.events.push({id:newEvId(), date, time, text, note, course, src:'manual', created:Date.now()});
+    saveCfg();
+  }
+  toast(f ? 'Zapisane' : 'Dodane do kalendarza w aplikacji');
+  if (date) calOpen(date); else go('cal');
+}
+async function deleteEvent(id){
+  const f = findEvent(id); if (!f) return;
+  if (!confirm('Usunąć to wydarzenie?')) return;
+  if (f.L){
+    f.L.events = f.L.events.filter(x => x.id !== id);
+    (f.L.dismissed = f.L.dismissed || []).push({date:f.e.date, text:f.e.text});
+    await DB.put(f.L);
+  } else { CFG.events = (CFG.events || []).filter(x => x.id !== id); saveCfg(); }
+  go('cal');
+}
+
 function vSettings(){
   return '<header class="top"><button class="back" data-act="home">' + icon('back') + 'Wróć</button></header><h1 class="page-title">Ustawienia</h1>' +
     '<section class="panel"><h2 class="panel-title">Klucz API</h2><p class="help" style="margin-top:0">Domyślnie Groq: jeden klucz do transkrypcji i notatek, tworzony na console.groq.com/keys. Klucz zostaje tylko w tej przeglądarce i jest wysyłany wyłącznie pod adres poniżej.</p>' +
@@ -1470,7 +1669,7 @@ function vSettings(){
     '<details style="margin-top:12px"><summary>' + icon('next') + 'Inny dostawca do notatek</summary><label class="check"><input type="checkbox" id="llmSame"' + (CFG.llmSame ? ' checked' : '') + '>Ten sam klucz i adres co transkrypcja</label><label class="lbl" for="llmBase">Adres API zgodny z OpenAI</label><input id="llmBase" value="' + esc(CFG.llmBase) + '" placeholder="https://openrouter.ai/api/v1" autocapitalize="off" spellcheck="false"><label class="lbl" for="llmKey">Klucz</label><input id="llmKey" type="password" value="' + esc(CFG.llmKey) + '" autocomplete="off" autocapitalize="off" spellcheck="false"></details>' +
     '<div class="row-btns" style="margin-top:20px"><button class="btn sec" data-act="savecfg">Zapisz</button></div></section>' +
     '<section class="panel"><h2 class="panel-title">Pamięć telefonu</h2><p class="help" style="margin-top:0">Nagrania zostają w telefonie, żeby można było odsłuchać fragment wykładu. Godzina nagrania to ok. 15 MB.</p><div id="stor" class="mute" style="margin:12px 0 0">Sprawdzam…</div><div class="row-btns" style="margin-top:16px"><button class="btn sec sm" data-act="delold">' + icon('trash') + 'Usuń nagrania starsze niż 30 dni</button></div></section>' +
-    '<section class="panel"><h2 class="panel-title">Kopia archiwum</h2><p class="help" style="margin-top:0">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj od razu, a co jakiś czas zrób kopię. Aplikacja przypomni o niej po tygodniu. Kopia zawiera notatki i transkrypcje, bez nagrań i zdjęć.</p><div class="row-btns" style="margin-top:16px"><button class="btn sec sm" data-act="export">' + icon('download') + 'Pobierz kopię</button><button class="btn sec sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></section>';
+    '<section class="panel"><h2 class="panel-title">Kopia archiwum</h2><p class="help" style="margin-top:0">Notatki są zapisane w pamięci tej przeglądarki. Safari może ją wyczyścić, jeśli długo nie otwierasz strony, więc ważne wykłady pobieraj od razu, a co jakiś czas zrób kopię. Aplikacja przypomni o niej po tygodniu. Kopia zawiera notatki, transkrypcje i kalendarz, bez nagrań i zdjęć.</p><div class="row-btns" style="margin-top:16px"><button class="btn sec sm" data-act="export">' + icon('download') + 'Pobierz kopię</button><button class="btn sec sm" data-act="import">Wczytaj kopię</button><input type="file" id="impf" accept="application/json,.json" hidden></div></section>';
 }
 
 async function fillStorage(){
@@ -1487,11 +1686,6 @@ async function deleteOldAudio(days){
   const lim = Date.now() - days * 86400000; let n = 0;
   for (const L of LECT){ if (L.startedAt < lim && !L.audioDeleted){ const k = await DB.delByLid('audio', L.id); if (k){ n++; } L.audioDeleted = true; await DB.put(L); } }
   return n;
-}
-function addToCalendar(e, L){
-  const blob = icsFile(e, L), name = (L.course + ' ' + e.date).replace(/[\\/:*?"<>|]+/g, ' ') + '.ics';
-  if (isIOS){ blob.text().then(t => { location.href = 'data:text/calendar;charset=utf-8,' + encodeURIComponent(t); }); return; }
-  saveBlob(blob, name);
 }
 function readSettingsForm(){
   const v = id => { const e = $('#' + id); return e ? e.value.trim() : null; };
@@ -1514,7 +1708,7 @@ async function testConn(){
 }
 async function finishLecture(L, redo){
   const msg = $('#msg') || {}; if (R){ toast('Najpierw zakończ bieżące nagranie.'); return; }
-  if (redo){ L.notes = ''; L.summary = ''; L.notedChars = 0; L.topic = ''; }
+  if (redo){ L.notes = ''; L.summary = ''; L.notedChars = 0; L.topic = ''; L.events = (L.events || []).filter(e => e.edited); }
   L.status = 'interrupted'; L.summaryErr = ''; await DB.put(L);
   R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:0, virtual:true};
   try {
@@ -1525,7 +1719,8 @@ async function finishLecture(L, redo){
       if (rest.length > 6000){ const cut = Math.max(take.lastIndexOf('. '), take.lastIndexOf('? '), take.lastIndexOf('! ')); if (cut > 3000) take = take.slice(0, cut + 1); }
       const user = notesUser(L, take);
       const pct = Math.round(before / Math.max(1, full.length) * 100);
-      const add = await chat(SYS_NOTES, user, sec => { msg.textContent = 'Piszę notatki… ' + pct + '%. Czekam ' + sec + ' s na limit Groq'; });
+      const sp = splitEvents(await chat(SYS_NOTES, user, sec => { msg.textContent = 'Piszę notatki… ' + pct + '%. Czekam ' + sec + ' s na limit Groq'; }));
+      const add = sp.notes; addAutoEvents(L, sp.events);
       L.notedChars = before + take.length; if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
       await DB.put(L);
     }
@@ -1574,7 +1769,15 @@ document.addEventListener('click', async ev => {
   else if (act === 'course'){ STUDY.on = false; go('course', b.dataset.c); }
   else if (act === 'script'){ const c = b.dataset.c; saveFile(buildDocx(scriptMd(c)), ('Skrypt - ' + c).replace(/[\\/:*?"<>|]+/g, ' ').slice(0, 80) + '.docx'); }
   else if (act === 'ask'){ const q = ($('#askq') || {}).value || ''; b.disabled = true; await askNotes(b.dataset.kind, b.dataset.id, q); b.disabled = false; }
-  else if (act === 'ics' && L){ const e = (L.events || [])[parseInt(b.dataset.i, 10)]; if (e) addToCalendar(e, L); }
+  else if (act === 'ics') addToCalendar(b.dataset.ev);
+  else if (act === 'cal') calOpen(VIEW.name === 'evform' ? CAL.sel : '');
+  else if (act === 'calday'){ CAL.sel = b.dataset.d; const d = evDate(CAL.sel); if (d.getMonth() !== CAL.m){ CAL.m = d.getMonth(); CAL.y = d.getFullYear(); } render(); }
+  else if (act === 'calprev' || act === 'calnext'){ const d = new Date(CAL.y, CAL.m + (act === 'calnext' ? 1 : -1), 1); CAL.y = d.getFullYear(); CAL.m = d.getMonth(); CAL.sel = ymd(d.getMonth() === new Date().getMonth() && d.getFullYear() === new Date().getFullYear() ? new Date() : d); render(); }
+  else if (act === 'caltoday') calOpen('');
+  else if (act === 'evnew') go('evform', {date:b.dataset.d || CAL.sel || todayYmd()});
+  else if (act === 'evedit') go('evform', {id:b.dataset.ev});
+  else if (act === 'evsave') saveEvent(b.dataset.ev);
+  else if (act === 'evdel') deleteEvent(b.dataset.ev);
   else if (act === 'studyon'){ STUDY.on = true; STUDY.show = false; render(); window.scrollTo(0, 0); }
   else if (act === 'studyoff'){ STUDY.on = false; render(); }
   else if (act === 'reveal'){ STUDY.show = true; render(); }
@@ -1584,7 +1787,7 @@ document.addEventListener('click', async ev => {
   else if (act === 'test') testConn();
   else if (act === 'savecfg'){ readSettingsForm(); toast('Zapisane'); }
   else if (act === 'export'){
-    const ok = await saveFile(new Blob([JSON.stringify({app:'slucham', v:1, lectures:LECT, courses:CFG.courses})], {type:'application/json'}), 'slucham-archiwum-' + new Date().toISOString().slice(0, 10) + '.json');
+    const ok = await saveFile(new Blob([JSON.stringify({app:'slucham', v:1, lectures:LECT, courses:CFG.courses, events:CFG.events || []})], {type:'application/json'}), 'slucham-archiwum-' + new Date().toISOString().slice(0, 10) + '.json');
     if (ok){ CFG.lastBackupAt = Date.now(); CFG.backupSnooze = 0; saveCfg(); if (VIEW.name === 'home') render(); }
   }
   else if (act === 'import') $('#impf').click();
@@ -1592,7 +1795,7 @@ document.addEventListener('click', async ev => {
 document.addEventListener('change', async ev => {
   if (ev.target.id === 'camf'){ const f = ev.target.files && ev.target.files[0]; if (f) takePhoto(f); setTimeout(() => { PICKING = false; }, 4000); }
   if (ev.target.id === 'impf' && ev.target.files[0]){
-    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } if (j.courses && typeof j.courses === 'object'){ for (const [k, v] of Object.entries(j.courses)) CFG.courses[k] = Object.assign({}, v, CFG.courses[k] || {}); saveCfg(); } sortLect(); toast('Wczytano wykładów: ' + n); }
+    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } if (j.courses && typeof j.courses === 'object'){ for (const [k, v] of Object.entries(j.courses)) CFG.courses[k] = Object.assign({}, v, CFG.courses[k] || {}); saveCfg(); } if (Array.isArray(j.events)){ CFG.events = CFG.events || []; for (const e of j.events) if (e && e.id && !CFG.events.some(x => x.id === e.id)) CFG.events.push(e); saveCfg(); } sortLect(); toast('Wczytano wykładów: ' + n); }
     catch { toast('To nie jest plik kopii archiwum.'); }
   }
   if (ev.target.id === 'course'){ const h = $('#hints'); if (h) h.value = (CFG.courses[ev.target.value.trim()] || {}).hints || ''; }
@@ -1603,7 +1806,7 @@ document.addEventListener('input', ev => { if (ev.target.id === 'q'){ FILTER.q =
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.12';
+const APP_VERSION = '2026-11-27.13';
 let SW_REG = null, RELOAD_PENDING = false;
 // a new version never interrupts a recording, notes being written or an edit: it waits for the next return to the archive
 function reloadWhenIdle(){ if (R || WORKING || VIEW.name !== 'home'){ RELOAD_PENDING = true; return; } location.reload(); }
@@ -1635,6 +1838,7 @@ document.addEventListener('visibilitychange', () => {
 (async () => {
   await DB.open(); LECT = await DB.all(); sortLect();
   for (const l of LECT){
+    if (normalizeEvents(l)) DB.put(l);
     if (l.status === 'recording'){ l.status = 'interrupted'; DB.put(l); }
     else if (l.status === 'done' && transcriptText(l).length - (l.notedChars || 0) > 200){ l.status = 'interrupted'; DB.put(l); }
   }
