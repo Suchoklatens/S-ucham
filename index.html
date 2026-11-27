@@ -228,25 +228,61 @@ const sortLect = () => LECT.sort((a, b) => b.startedAt - a.startedAt);
 const transcriptText = L => (L.transcript || []).map(s => s.text).join(' ');
 
 /* ================= API ================= */
+function waitFromMsg(msg){
+  const m = String(msg || '').match(/try again in\s*((?:\d+(?:\.\d+)?h)?(?:\d+(?:\.\d+)?m(?!s))?(?:\d+(?:\.\d+)?s)?(?:\d+(?:\.\d+)?ms)?)/i);
+  if (!m || !m[1]) return 0;
+  let t = 0; const g = (re, k) => { const x = m[1].match(re); if (x) t += parseFloat(x[1]) * k; };
+  g(/(\d+(?:\.\d+)?)h/, 3600); g(/(\d+(?:\.\d+)?)m(?!s)/, 60); g(/(\d+(?:\.\d+)?)s/, 1); g(/(\d+(?:\.\d+)?)ms/, 0.001);
+  return t;
+}
 async function api(base, key, path, opts = {}){
   let r;
   try { r = await fetch(String(base).replace(/\/+$/, '') + path, {...opts, headers:{Authorization:'Bearer ' + key, ...(opts.headers || {})}}); }
   catch { const e = new Error('Brak połączenia z API (sieć albo blokada w przeglądarce).'); e.net = true; throw e; }
   if (!r.ok){
     let msg = ''; try { const j = await r.json(); msg = (j.error && (j.error.message || j.error)) || JSON.stringify(j).slice(0, 200); } catch {}
-    const e = new Error('Błąd API ' + r.status + (msg ? ': ' + String(msg).slice(0, 220) : '')); e.status = r.status; e.retryAfter = parseFloat(r.headers.get('retry-after')) || 0; throw e;
+    const e = new Error('Błąd API ' + r.status + (msg ? ': ' + String(msg).slice(0, 220) : '')); e.status = r.status; e.retryAfter = parseFloat(r.headers.get('retry-after')) || waitFromMsg(msg); e.daily = /per day|\(TPD\)|\(RPD\)|\(ASD\)/i.test(String(msg)); throw e;
   }
   return r.json();
 }
 const llmConf = () => CFG.llmSame ? {base:CFG.sttBase, key:CFG.sttKey, model:CFG.llmModel} : {base:CFG.llmBase, key:CFG.llmKey, model:CFG.llmModel};
-async function chat(system, user){
+const TOK_WINDOW = [];
+const estTokens = s => Math.ceil(s.length / 2.5) + 700;
+async function paceTokens(need, onWait){
+  const budget = (dbg().tpm || 7000);
+  for (;;){
+    const now = Date.now(); while (TOK_WINDOW.length && now - TOK_WINDOW[0].t > 60000) TOK_WINDOW.shift();
+    const used = TOK_WINDOW.reduce((a, x) => a + x.n, 0);
+    if (!TOK_WINDOW.length || used + need <= budget) return;
+    const waitMs = 60000 - (now - TOK_WINDOW[0].t) + 250;
+    onWait && onWait(Math.ceil(waitMs / 1000));
+    await sleep(Math.min(waitMs, 5000));
+  }
+}
+async function chat(system, user, onWait){
   const c = llmConf();
   const body = {model:c.model, messages:[{role:'system', content:system}, {role:'user', content:user}], temperature:0.2};
   if (/gpt-oss/i.test(c.model)) body.reasoning_effort = 'low';
-  const call = () => api(c.base, c.key, '/chat/completions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
-  let j;
-  try { j = await call(); }
-  catch (e){ if (e.status === 400){ delete body.temperature; delete body.reasoning_effort; j = await call(); } else throw e; }
+  const need = estTokens(system + user);
+  let tries = 0, j;
+  for (;;){
+    await paceTokens(need, onWait);
+    const slot = {t:Date.now(), n:need}; TOK_WINDOW.push(slot);
+    try {
+      j = await api(c.base, c.key, '/chat/completions', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+      if (j.usage && j.usage.total_tokens) slot.n = j.usage.total_tokens;
+      break;
+    } catch (e){
+      const i = TOK_WINDOW.indexOf(slot); if (i >= 0) TOK_WINDOW.splice(i, 1);
+      if (e.status === 400 && (body.temperature !== undefined || body.reasoning_effort)){ delete body.temperature; delete body.reasoning_effort; continue; }
+      if (e.status === 429 && !e.daily && ++tries <= 8){
+        const w = Math.max(e.retryAfter || 0, 5) + 1;
+        onWait && onWait(Math.ceil(w)); await sleep(w * 1000); continue;
+      }
+      if (e.status === 429 && e.daily) e.message = 'Wyczerpany dzienny limit notatek w Groq. Transkrypcja jest zapisana, notatki dokończysz po odnowieniu limitu albo z innym modelem w ustawieniach.';
+      throw e;
+    }
+  }
   let t = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '';
   if (Array.isArray(t)) t = t.map(p => p.text || '').join('');
   return String(t).replace(/<think>[\s\S]*?<\/think>/g, '').trim();
@@ -464,7 +500,7 @@ async function maybeNotes(force){
       const user = notesUser(L, take);
       let add;
       try { add = await chat(SYS_NOTES, user); R.notesErr = ''; }
-      catch (e){ R.notesErr = e.message; uiStatus(); R.notesHold = Date.now() + Math.max((e.retryAfter || 0) * 1000, 15000); if (force && (R.notesTries = (R.notesTries || 0) + 1) < 4){ await sleep(Math.max((e.retryAfter || 0) * 1000, 2500)); continue; } break; }
+      catch (e){ R.notesErr = e.message; uiStatus(); R.notesHold = Date.now() + (e.daily ? 3600000 : Math.max((e.retryAfter || 0) * 1000, 15000)); if (force && (R.notesTries = (R.notesTries || 0) + 1) < 4){ await sleep(Math.max((e.retryAfter || 0) * 1000, 2500)); continue; } break; }
       L.notedChars = (L.notedChars || 0) + take.length; R.lastNotesAt = Date.now();
       if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
       await DB.put(L); uiNotes(); uiStatus();
@@ -780,6 +816,7 @@ async function testConn(){
 async function finishLecture(L, redo){
   const msg = $('#msg') || {}; if (R){ toast('Najpierw zakończ bieżące nagranie.'); return; }
   if (redo){ L.notes = ''; L.summary = ''; L.notedChars = 0; L.topic = ''; }
+  L.status = 'interrupted'; L.summaryErr = ''; await DB.put(L);
   R = {lecture:L, queue:[], done:0, skipped:0, failed:0, netErr:'', notesErr:'', lastNotesAt:0, virtual:true};
   try {
     const full = transcriptText(L);
@@ -788,15 +825,15 @@ async function finishLecture(L, redo){
       const rest = full.slice(before); let take = rest.slice(0, 4200);
       if (rest.length > 4200){ const cut = Math.max(take.lastIndexOf('. '), take.lastIndexOf('? '), take.lastIndexOf('! ')); if (cut > 2000) take = take.slice(0, cut + 1); }
       const user = notesUser(L, take);
-      let add, tries = 0;
-      for (;;){ try { add = await chat(SYS_NOTES, user); break; } catch (e){ if (++tries >= 4) throw e; await sleep(Math.max(e.retryAfter * 1000, 3000)); } }
+      const pct = Math.round(before / Math.max(1, full.length) * 100);
+      const add = await chat(SYS_NOTES, user, sec => { msg.textContent = 'Piszę notatki… ' + pct + '%. Czekam ' + sec + ' s na limit Groq'; });
       L.notedChars = before + take.length; if (add && !/^BRAK\.?$/i.test(add.trim())) L.notes = (L.notes ? L.notes + '\n\n' : '') + add.trim();
       await DB.put(L);
     }
     msg.textContent = 'Robię podsumowanie…'; L.summaryErr = ''; await summarize(L);
     if (!L.endedAt){ L.endedAt = L.startedAt + ((L.transcript.slice(-1)[0] || {}).t || 0) * 1000; L.durationSec = Math.round((L.endedAt - L.startedAt) / 1000); }
     L.status = 'done'; await DB.put(L); R = null; render(); toast('Gotowe');
-  } catch (e){ R = null; msg.className = 'err'; msg.textContent = 'Nie udało się: ' + e.message; }
+  } catch (e){ R = null; render(); const m2 = $('#msg'); if (m2){ m2.className = 'err'; m2.textContent = 'Nie udało się: ' + e.message; } }
 }
 document.addEventListener('click', async ev => {
   const b = ev.target.closest('[data-act]'); if (!b) return; const act = b.dataset.act, L = b.dataset.id && LECT.find(l => l.id === b.dataset.id);
@@ -830,7 +867,7 @@ document.addEventListener('change', async ev => {
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.5';
+const APP_VERSION = '2026-11-27.6';
 async function checkUpdate(){
   if (R) return;
   try {
@@ -849,7 +886,10 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* ================= boot ================= */
 (async () => {
   await DB.open(); LECT = await DB.all(); sortLect();
-  for (const l of LECT) if (l.status === 'recording'){ l.status = 'interrupted'; DB.put(l); }
+  for (const l of LECT){
+    if (l.status === 'recording'){ l.status = 'interrupted'; DB.put(l); }
+    else if (l.status === 'done' && transcriptText(l).length - (l.notedChars || 0) > 200){ l.status = 'interrupted'; DB.put(l); }
+  }
   render();
   checkUpdate();
 })();
