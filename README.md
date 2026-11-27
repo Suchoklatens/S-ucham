@@ -26,6 +26,7 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 - Fiszki z powtarzaniem: „Umiem” odsuwa pytanie o 1, 3, 7, 14 i 30 dni, „Jeszcze nie” zostawia je na dziś.
 - Pytanie do notatek wykładu albo całego przedmiotu; odpowiedź tylko z notatek, ze wskazaniem, skąd pochodzi.
 - Kalendarz w aplikacji (ikona na ekranie głównym). Wydarzenia zapowiedziane na wykładzie (kolokwia, egzaminy, oddanie prac, przeniesione zajęcia, konsultacje) dopisują się same w trakcie nagrywania, z datą liczoną od dnia wykładu i godziną, jeśli padła. Własne wydarzenia dodaje się ręcznie na wybrany dzień i godzinę, z przedmiotem i notatką. Każde wydarzenie można poprawić, usunąć albo jednym stuknięciem dodać do kalendarza iPhone'a; najbliższe są na ekranie głównym.
+- Wczytywanie terminów ze zrzutu ekranu (np. z Notatek) albo z wklejonego tekstu: aplikacja wypisuje wydarzenia z przedmiotem, datą i szczegółami, oznacza daty z przeszłości, odhaczone pozycje i duplikaty, a ty poprawiasz i zaznaczasz, co dodać. Zrzuty czyta model `qwen/qwen3.8-27b` na Groq.
 
 ## Pierwsze uruchomienie
 

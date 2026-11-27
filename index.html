@@ -304,6 +304,27 @@ body.has-player #app{padding-bottom:96px}
 .ev-dt{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
 .ev-src{margin-bottom:12px}
 .ev-src .linkish{color:var(--ink);font-size:15px;line-height:22px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+
+.imp-open{margin-top:8px}
+.imp-lead{margin:-8px 0 16px}
+.imp-thumbs{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.imp-thumb{position:relative}
+.imp-thumb img{height:96px;border-radius:8px;border:1px solid var(--line);display:block}
+.imp-thumb .icon-btn{position:absolute;top:4px;right:4px;width:28px;height:28px;background:var(--card)}
+.imp-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.imp-row{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.imp-row.off{opacity:.55}
+.imp-check{padding-top:10px}
+.imp-check input{width:22px;height:22px;min-height:0;padding:0;-webkit-appearance:auto;appearance:auto;accent-color:var(--pri-bg)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.imp-main{flex:1;min-width:0}
+.imp-main input{min-height:40px;padding:8px 10px}
+.imp-text{font-weight:500}
+.imp-course{font-size:13px;line-height:18px;color:var(--ink3);margin:4px 0 6px}
+.imp-dt{display:grid;grid-template-columns:1.4fr 1fr;gap:8px}
+.imp-dt input,.ev-dt input{min-width:0;width:100%}
+.imp-note{font-size:13px;line-height:18px;color:var(--ink2);margin-top:8px}
+.imp-warn{font-size:13px;line-height:18px;color:var(--warn);margin-top:6px}
 </style>
 </head>
 <body>
@@ -425,15 +446,16 @@ function tuneBody(body){
   else if (/qwen3/i.test(body.model)) body.reasoning_effort = 'none';
 }
 let WORKING = 0;
-async function chat(system, user, onWait){
+async function chat(system, user, onWait, opts){
   WORKING++;
-  try { return await chatInner(system, user, onWait); } finally { WORKING--; }
+  try { return await chatInner(system, user, onWait, opts); } finally { WORKING--; }
 }
-async function chatInner(system, user, onWait){
-  const c = llmConf();
-  const body = {model:activeModel(c.model), messages:[{role:'system', content:system}, {role:'user', content:user}], temperature:0.2};
+async function chatInner(system, user, onWait, opts){
+  const c = llmConf(), imgs = (opts && opts.images) || [];
+  const content = imgs.length ? [{type:'text', text:user}, ...imgs.map(u => ({type:'image_url', image_url:{url:u}}))] : user;
+  const body = {model:imgs.length ? opts.model : activeModel(c.model), messages:[{role:'system', content:system}, {role:'user', content}], temperature:0.2};
   tuneBody(body);
-  const need = estTokens(system + user);
+  const need = estTokens(system + user) + imgs.length * 2100;
   let tries = 0, j;
   for (;;){
     await paceTokens(need, onWait);
@@ -445,11 +467,13 @@ async function chatInner(system, user, onWait){
     } catch (e){
       const i = TOK_WINDOW.indexOf(slot); if (i >= 0) TOK_WINDOW.splice(i, 1);
       if (e.status === 400 && (body.temperature !== undefined || body.reasoning_effort)){ delete body.temperature; delete body.reasoning_effort; continue; }
+      if (imgs.length && (e.status === 400 || e.status === 404)){ e.message = 'Model ' + body.model + ' nie przyjął zrzutu ekranu (' + e.message + '). Wklej tekst zamiast zrzutu.'; throw e; }
       if (e.status === 404 && body.model !== c.model){ CFG.exhausted = CFG.exhausted || {}; CFG.exhausted[body.model] = Date.now() + 24 * 3600000; saveCfg(); body.model = activeModel(c.model); tuneBody(body); continue; }
       if (e.status === 429 && !e.daily && ++tries <= 8){
         const w = Math.max(e.retryAfter || 0, 5) + 1;
         onWait && onWait(Math.ceil(w)); await sleep(w * 1000); continue;
       }
+      if (e.status === 429 && e.daily && imgs.length){ e.message = 'Wyczerpany dzienny limit modelu, który czyta zrzuty. Wklej tekst zamiast zrzutu albo spróbuj jutro.'; throw e; }
       if (e.status === 429 && e.daily){
         CFG.exhausted = CFG.exhausted || {}; CFG.exhausted[body.model] = Date.now() + Math.max(waitFromMsg(e.message) * 1000, 15 * 60000); saveCfg();
         const next = activeModel(c.model);
@@ -1056,6 +1080,7 @@ function render(){
   else if (VIEW.name === 'course') html = vCourse(VIEW.arg);
   else if (VIEW.name === 'cal') html = vCal();
   else if (VIEW.name === 'evform') html = vEvForm(VIEW.arg);
+  else if (VIEW.name === 'evimport') html = vImport();
   else if (VIEW.name === 'settings') html = vSettings();
   else html = vHome();
   a.innerHTML = '<div class="view">' + html + '</div>';
@@ -1602,6 +1627,7 @@ function vCal(){
     '<div class="sec-head"><h2>' + esc(sd.toLocaleDateString('pl-PL', {weekday:'long', day:'numeric', month:'long'}).replace(/^./, c => c.toUpperCase())) + '</h2></div>' +
     (sel.length ? '<div class="list">' + sel.map(e => eventRow(e, false)).join('') + '</div>' : '<p class="mute cal-empty">Nic zaplanowanego.</p>') +
     '<button class="btn sec wide" data-act="evnew" data-d="' + CAL.sel + '">' + icon('plus') + 'Dodaj wydarzenie na ten dzień</button>' +
+    '<button class="btn ghost wide imp-open" data-act="evimport">' + icon('camera') + 'Wczytaj terminy ze zrzutu ekranu lub tekstu</button>' +
     (next.length ? '<div class="sec-head"><h2>Później</h2></div><div class="list">' + next.map(e => eventRow(e, false)).join('') + '</div>' : '') +
     (undated.length ? '<div class="sec-head"><h2>Bez daty</h2><span class="count">' + undated.length + '</span></div><p class="help" style="margin:-4px 0 8px">Padły na wykładzie bez dnia. Stuknij, żeby ustalić datę.</p><div class="list">' + undated.map(e => eventRow(e, false)).join('') + '</div>' : '') +
     '<p class="help">Wydarzenia z wykładów dopisują się same w trakcie nagrywania. Ikona kalendarza przy wydarzeniu dodaje je do kalendarza iPhone&#39;a.</p>';
@@ -1653,6 +1679,101 @@ async function deleteEvent(id){
     await DB.put(f.L);
   } else { CFG.events = (CFG.events || []).filter(x => x.id !== id); saveCfg(); }
   go('cal');
+}
+
+/* ---------- reading deadlines from a screenshot or pasted text ---------- */
+const SYS_IMPORT = `Dostajesz zrzut ekranu albo tekst z notatnika studenta z terminami zaliczeń: przedmioty, a pod nimi kolokwia, egzaminy, testy, kartkówki, prace pisemne i projekty. Wypisz każde takie wydarzenie osobno. Odpowiedz wyłącznie obiektem JSON w postaci:
+{"items":[{"course":"…","text":"…","date":"RRRR-MM-DD","time":"GG:MM","note":"…","done":false}]}
+Zasady:
+- course: nazwa przedmiotu, pod którym wydarzenie jest zapisane, dokładnie jak w notatniku.
+- text: krótka nazwa wydarzenia, np. „Kolokwium I”, „Egzamin – termin 0”, „Praca pisemna”. Bez daty i bez szczegółów.
+- date: dzień w formacie RRRR-MM-DD. Rok przepisz dokładnie tak, jak jest zapisany, nawet jeśli wygląda na błąd. Jeśli roku nie ma, wybierz najbliższą taką datę od dzisiaj w przód. Jeśli dnia nie ma, wpisz "".
+- time: godzina, jeśli jest zapisana, inaczej "".
+- note: szczegóły zapisane przy wydarzeniu i w podpunktach pod nim (zakres, forma, punkty, warunki), połączone średnikami; jeśli nic nie ma, "".
+- done: true, jeśli wydarzenie jest odhaczone, zaznaczone jako zrobione albo przekreślone.
+- Nie wymyślaj wydarzeń, dat ani szczegółów, których nie ma w notatniku. Podpunkt opisujący wydarzenie nie jest osobnym wydarzeniem.`;
+const IMP = {images:[], text:'', items:null, busy:false, err:''};
+function vImport(){
+  const today = todayYmd(), it = IMP.items;
+  const rows = it ? it.map((x, i) => {
+    const warn = [x.done ? 'odhaczone w notatniku' : '', x.date && x.date < today ? 'data już minęła – sprawdź rok' : '', !x.date ? 'bez dnia – trafi do „Bez daty”' : '', x.dup ? 'już jest w kalendarzu' : ''].filter(Boolean);
+    return '<div class="imp-row' + (x.on ? '' : ' off') + '"><label class="imp-check"><input type="checkbox" data-i="' + i + '" class="imp-on"' + (x.on ? ' checked' : '') + '><span class="sr">Dodaj</span></label><div class="imp-main">' +
+      '<input class="imp-text" data-i="' + i + '" value="' + esc(x.text) + '" aria-label="Nazwa">' +
+      '<div class="imp-course">' + esc(x.course || 'bez przedmiotu') + '</div>' +
+      '<div class="imp-dt"><input type="date" class="imp-date" data-i="' + i + '" value="' + esc(x.date) + '" aria-label="Dzień"><input type="time" class="imp-time" data-i="' + i + '" value="' + esc(x.time) + '" aria-label="Godzina"></div>' +
+      (x.note ? '<div class="imp-note">' + esc(x.note) + '</div>' : '') +
+      (warn.length ? '<div class="imp-warn">' + esc(warn.join(' · ')) + '</div>' : '') + '</div></div>';
+  }).join('') : '';
+  const n = it ? it.filter(x => x.on).length : 0;
+  return '<header class="top"><button class="back" data-act="cal">' + icon('back') + 'Kalendarz</button></header>' +
+    '<h1 class="page-title">Wczytaj terminy</h1>' +
+    '<p class="help imp-lead">Zrzut ekranu z notatnika albo wklejony tekst. Aplikacja wypisze wydarzenia, a ty sprawdzisz daty i zaznaczysz, które dodać.</p>' +
+    '<section class="panel">' +
+      '<div class="row-btns"><button class="btn sec" data-act="impimg">' + icon('camera') + 'Wybierz zrzuty ekranu</button></div>' +
+      '<input type="file" id="impimgf" accept="image/*" multiple hidden>' +
+      (IMP.images.length ? '<div class="imp-thumbs">' + IMP.images.map((u, i) => '<div class="imp-thumb"><img src="' + u + '" alt="Zrzut ' + (i + 1) + '"><button class="icon-btn sm" data-act="impdrop" data-i="' + i + '" aria-label="Usuń zrzut">' + icon('x') + '</button></div>').join('') + '</div>' : '') +
+      '<label class="lbl" for="imptext">albo wklej tekst</label><textarea id="imptext" rows="4" placeholder="np. Prawo pracy – 15.12 sprawdzian testowy">' + esc(IMP.text) + '</textarea>' +
+      '<div class="row-btns" style="margin-top:16px"><button class="btn pri" data-act="impread"' + (IMP.busy ? ' disabled' : '') + '>' + (IMP.busy ? 'Odczytuję…' : 'Odczytaj') + '</button></div>' +
+      '<div id="impmsg" class="' + (IMP.err ? 'err' : 'mute') + '" style="margin-top:8px">' + esc(IMP.err) + '</div></section>' +
+    (it ? (it.length ? '<div class="sec-head"><h2>Znalezione</h2><span class="count">' + it.length + '</span></div><div class="imp-list">' + rows + '</div>' +
+      '<button class="btn pri wide" data-act="impadd"' + (n ? '' : ' disabled') + '>Dodaj zaznaczone (' + n + ')</button>'
+      : '<p class="mute">Nie znalazłem żadnych terminów.</p>') : '');
+}
+async function shrinkImage(file, max){
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.85);
+  } finally { URL.revokeObjectURL(url); }
+}
+async function addImportImages(files){
+  for (const f of [...files].slice(0, 3 - IMP.images.length)){ try { IMP.images.push(await shrinkImage(f, 2000)); } catch {} }
+  if (files.length > 3) toast('Naraz najwyżej 3 zrzuty');
+  IMP.text = ($('#imptext') || {}).value || IMP.text; render();
+}
+function parseJsonObj(out){
+  const m = String(out || '').match(/\{[\s\S]*\}/); if (!m) throw new Error('Model nie zwrócił listy terminów.');
+  return JSON.parse(m[0]);
+}
+async function readImport(){
+  IMP.text = (($('#imptext') || {}).value || '').trim();
+  if (!IMP.images.length && !IMP.text){ IMP.err = 'Dodaj zrzut ekranu albo wklej tekst.'; render(); return; }
+  IMP.busy = true; IMP.err = ''; render();
+  const user = 'Dzisiaj jest ' + todayYmd() + '.' + (IMP.text ? '\n\nTekst z notatnika:\n<<<\n' + IMP.text.slice(0, 8000) + '\n>>>' : '') + (IMP.images.length ? '\n\nZrzuty ekranu z notatnika są w załączniku.' : '');
+  try {
+    const wait = sec => { const m = $('#impmsg'); if (m) m.textContent = 'Czekam ' + sec + ' s na limit Groq'; };
+    const out = await chat(SYS_IMPORT, user, wait, IMP.images.length ? {images:IMP.images, model:CFG.visionModel || 'qwen/qwen3.8-27b'} : null);
+    const j = parseJsonObj(out), existing = allEvents();
+    IMP.items = (j.items || []).map(x => {
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(x.date || '') && !isNaN(evDate(x.date)) ? x.date : '';
+      const time = /^\d{1,2}:\d{2}$/.test(x.time || '') ? x.time.padStart(5, '0') : '';
+      const e = {course:String(x.course || '').trim().slice(0, 80), text:String(x.text || '').replace(/[*_]+/g, '').trim().slice(0, 160), date, time, note:String(x.note || '').trim().slice(0, 600), done:!!x.done};
+      e.dup = existing.some(o => (o.course || '') === e.course && sameEvent(o, e));
+      e.on = !e.done && !e.dup;
+      return e;
+    }).filter(e => e.text);
+  } catch (e){ IMP.err = 'Nie udało się odczytać: ' + e.message; }
+  IMP.busy = false; render();
+}
+function syncImportForm(){
+  document.querySelectorAll('.imp-on').forEach(x => { IMP.items[x.dataset.i].on = x.checked; });
+  document.querySelectorAll('.imp-text').forEach(x => { IMP.items[x.dataset.i].text = x.value.trim(); });
+  document.querySelectorAll('.imp-date').forEach(x => { IMP.items[x.dataset.i].date = x.value; });
+  document.querySelectorAll('.imp-time').forEach(x => { IMP.items[x.dataset.i].time = x.value; });
+}
+function addImported(){
+  syncImportForm();
+  const sel = IMP.items.filter(x => x.on && x.text); if (!sel.length) return;
+  CFG.events = CFG.events || [];
+  sel.forEach(x => CFG.events.push({id:newEvId(), date:x.date, time:x.time, text:x.text, note:x.note, course:x.course, src:'manual', created:Date.now()}));
+  saveCfg();
+  const first = sel.filter(x => x.date && x.date >= todayYmd()).sort(evSort)[0];
+  toast('Dodano do kalendarza: ' + sel.length + ' ' + plural(sel.length, 'wydarzenie', 'wydarzenia', 'wydarzeń'));
+  IMP.images = []; IMP.text = ''; IMP.items = null; IMP.err = '';
+  calOpen(first ? first.date : '');
 }
 
 function vSettings(){
@@ -1778,6 +1899,11 @@ document.addEventListener('click', async ev => {
   else if (act === 'evedit') go('evform', {id:b.dataset.ev});
   else if (act === 'evsave') saveEvent(b.dataset.ev);
   else if (act === 'evdel') deleteEvent(b.dataset.ev);
+  else if (act === 'evimport') go('evimport');
+  else if (act === 'impimg'){ IMP.text = ($('#imptext') || {}).value || ''; const f = $('#impimgf'); f.value = ''; f.click(); }
+  else if (act === 'impdrop'){ IMP.text = ($('#imptext') || {}).value || ''; IMP.images.splice(parseInt(b.dataset.i, 10), 1); render(); }
+  else if (act === 'impread') readImport();
+  else if (act === 'impadd') addImported();
   else if (act === 'studyon'){ STUDY.on = true; STUDY.show = false; render(); window.scrollTo(0, 0); }
   else if (act === 'studyoff'){ STUDY.on = false; render(); }
   else if (act === 'reveal'){ STUDY.show = true; render(); }
@@ -1793,9 +1919,11 @@ document.addEventListener('click', async ev => {
   else if (act === 'import') $('#impf').click();
 });
 document.addEventListener('change', async ev => {
+  if (ev.target.id === 'impimgf' && ev.target.files.length) addImportImages(ev.target.files);
+  if (ev.target.classList && ev.target.classList.contains('imp-on') && IMP.items){ syncImportForm(); const n = IMP.items.filter(x => x.on).length; const bb = document.querySelector('[data-act=impadd]'); if (bb){ bb.textContent = 'Dodaj zaznaczone (' + n + ')'; bb.disabled = !n; } ev.target.closest('.imp-row').classList.toggle('off', !ev.target.checked); }
   if (ev.target.id === 'camf'){ const f = ev.target.files && ev.target.files[0]; if (f) takePhoto(f); setTimeout(() => { PICKING = false; }, 4000); }
   if (ev.target.id === 'impf' && ev.target.files[0]){
-    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } if (j.courses && typeof j.courses === 'object'){ for (const [k, v] of Object.entries(j.courses)) CFG.courses[k] = Object.assign({}, v, CFG.courses[k] || {}); saveCfg(); } if (Array.isArray(j.events)){ CFG.events = CFG.events || []; for (const e of j.events) if (e && e.id && !CFG.events.some(x => x.id === e.id)) CFG.events.push(e); saveCfg(); } sortLect(); toast('Wczytano wykładów: ' + n); }
+    try { const j = JSON.parse(await ev.target.files[0].text()); let n = 0; for (const l of (j.lectures || [])){ if (l && l.id && !LECT.some(x => x.id === l.id)){ LECT.push(l); await DB.put(l); n++; } } if (j.courses && typeof j.courses === 'object'){ for (const [k, v] of Object.entries(j.courses)) CFG.courses[k] = Object.assign({}, v, CFG.courses[k] || {}); saveCfg(); } if (Array.isArray(j.events)){ CFG.events = CFG.events || []; for (const e of j.events) if (e && e.id && !CFG.events.some(x => x.id === e.id)) CFG.events.push(e); saveCfg(); } sortLect(); toast('Wczytano wykładów: ' + n + (Array.isArray(j.events) && j.events.length ? ', wydarzeń w kalendarzu: ' + j.events.length : '')); if (VIEW.name !== 'settings') render(); }
     catch { toast('To nie jest plik kopii archiwum.'); }
   }
   if (ev.target.id === 'course'){ const h = $('#hints'); if (h) h.value = (CFG.courses[ev.target.value.trim()] || {}).hints || ''; }
@@ -1806,7 +1934,7 @@ document.addEventListener('input', ev => { if (ev.target.id === 'q'){ FILTER.q =
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.13';
+const APP_VERSION = '2026-11-27.14';
 let SW_REG = null, RELOAD_PENDING = false;
 // a new version never interrupts a recording, notes being written or an edit: it waits for the next return to the archive
 function reloadWhenIdle(){ if (R || WORKING || VIEW.name !== 'home'){ RELOAD_PENDING = true; return; } location.reload(); }
