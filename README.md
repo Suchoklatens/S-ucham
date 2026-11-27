@@ -4,7 +4,7 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 
 ## Jak to działa
 
-- Jeden plik `index.html`, bez serwera i bez instalacji.
+- Jeden plik `index.html`, bez serwera. `sw.js` zapisuje pliki aplikacji w telefonie, więc otwiera się ona także bez internetu i sama pobiera nowe wersje (nigdy w trakcie nagrywania).
 - Transkrypcja i notatki przez API zgodne z OpenAI. Domyślnie Groq: `whisper-large-v3` i `openai/gpt-oss-120b`.
 - Klucz API wpisuje się w ustawieniach aplikacji. Zostaje tylko w przeglądarce na telefonie i nie trafia do tego repozytorium.
 - Archiwum wykładów leży w pamięci przeglądarki (IndexedDB). Ważne notatki warto pobierać od razu, a w ustawieniach co jakiś czas robić kopię archiwum.
@@ -19,6 +19,13 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 - Wyszukiwarka w całym archiwum i filtr po przedmiocie.
 - Pytania do powtórki z jednego wykładu albo z całego przedmiotu, z eksportem do Word.
 - Przypomnienie o kopii archiwum po tygodniu.
+- Odsłuch: nagranie zostaje w telefonie, a stuknięcie zdania w transkrypcji odtwarza ten fragment i dalsze po kolei. W ustawieniach można usunąć nagrania starsze niż 30 dni.
+- Zdjęcie slajdu albo tablicy w trakcie nagrywania. Zdjęcia są w galerii wykładu, przy transkrypcji w miejscu, w którym je zrobiono, i w pliku Word.
+- Lista przepisów przywołanych w notatkach (np. art. 9 § 1 k.k.) w wykładzie i dla całego przedmiotu.
+- Ekran przedmiotu: skrypt z wszystkich wykładów w jednym pliku Word (spis treści, słownik pojęć, przepisy), słownik pojęć, terminy, powtórka i lista wykładów.
+- Fiszki z powtarzaniem: „Umiem” odsuwa pytanie o 1, 3, 7, 14 i 30 dni, „Jeszcze nie” zostawia je na dziś.
+- Pytanie do notatek wykładu albo całego przedmiotu; odpowiedź tylko z notatek, ze wskazaniem, skąd pochodzi.
+- Terminy zapowiedziane na wykładzie (kolokwia, egzaminy, oddanie prac) z dodaniem do kalendarza; najbliższe są na ekranie głównym.
 
 ## Pierwsze uruchomienie
 
