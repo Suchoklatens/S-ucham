@@ -1,4 +1,4 @@
-# Słucham
+# słuch'am
 
 Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu „Zacznij słuchać” aplikacja wysyła dźwięk kawałkami do transkrypcji, co kilka minut dopisuje uporządkowane notatki, a po zakończeniu zapisuje wykład w archiwum z podsumowaniem. Notatki można pobrać jako plik Word, udostępnić albo skopiować.
 
@@ -13,7 +13,7 @@ Dyktafon AI na wykłady, działający w przeglądarce na iPhonie. Po kliknięciu
 
 1. Załóż klucz na https://console.groq.com/keys.
 2. Otwórz stronę aplikacji w Safari, wejdź w ustawienia (⚙︎), wklej klucz i kliknij „Zapisz i sprawdź”.
-3. Opcjonalnie: Udostępnij → „Do ekranu początkowego”, żeby mieć ikonę.
+3. Zainstaluj jak aplikację: w Safari Udostępnij → „Do ekranu początkowego” → Dodaj. Na ekranie pojawi się ikona „słuch'am”, a aplikacja otwiera się na pełnym ekranie, bez paska Safari.
 4. Zrób najpierw pięciominutową próbę.
 
 ## Ograniczenia na iPhonie
