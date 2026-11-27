@@ -463,23 +463,30 @@ function notesUser(L, take){
 
 async function transcribeSeg(seg){
   const L = R.lecture, hints = ((CFG.courses[L.course] || {}).hints || '').trim();
-  const prompt = [hints && ('Wykład: ' + L.course + '. Terminy: ' + hints + '.'), transcriptText(L).slice(-160)].filter(Boolean).join(' ').slice(-600);
-  const send = (blob, ext) => {
+  // Groq accepts at most 224 prompt tokens: keywords first (they matter most), then a short tail of the transcript
+  const head = hints ? ('Wykład: ' + L.course + '. Terminy: ' + hints).slice(0, 260) + '.' : '';
+  const tail = transcriptText(L).slice(-Math.max(0, 380 - head.length)).replace(/^\S*\s/, '');
+  const prompt = [head, tail].filter(Boolean).join(' ').trim();
+  const send = (blob, ext, usePrompt = true) => {
     const fd = new FormData(); fd.append('file', new File([blob], 'fragment.' + ext, {type:blob.type || 'application/octet-stream'}));
     fd.append('model', CFG.sttModel); if (CFG.lang) fd.append('language', CFG.lang);
     const whisper = /whisper/i.test(CFG.sttModel); fd.append('response_format', whisper ? 'verbose_json' : 'json'); if (whisper) fd.append('temperature', '0');
-    if (prompt) fd.append('prompt', prompt);
+    if (prompt && usePrompt) fd.append('prompt', prompt);
     return api(CFG.sttBase, CFG.sttKey, '/audio/transcriptions', {method:'POST', body:fd});
   };
   if (R.forceWav && seg.ext !== 'wav'){ try { seg.blob = await blobToWav(seg.blob, R.rec && !R.rec.stopped ? R.rec.ctx : null); seg.ext = 'wav'; } catch {} }
   let j;
   try { j = await send(seg.blob, seg.ext); }
   catch (e){
-    if (e.status === 400 && seg.ext !== 'wav'){
+    if (e.status !== 400) throw e;
+    // first suspect the prompt, only then the audio format
+    try { j = await send(seg.blob, seg.ext, false); }
+    catch (e2){
+      if (e2.status !== 400 || seg.ext === 'wav') throw e2;
       const wav = await blobToWav(seg.blob, R.rec && !R.rec.stopped ? R.rec.ctx : null);
-      j = await send(wav, 'wav');
+      j = await send(wav, 'wav', false);
       R.forceWav = true; CFG.autoWav = true; saveCfg(); if (R.rec) R.rec.switchToWav();
-    } else throw e;
+    }
   }
   let text = '';
   if (Array.isArray(j.segments) && j.segments.length) text = j.segments.filter(s => !(s.no_speech_prob > 0.7 && s.avg_logprob < -1)).map(s => s.text).join(' ');
@@ -909,7 +916,7 @@ document.addEventListener('change', async ev => {
 $('#blackout').addEventListener('click', () => $('#blackout').classList.remove('on'));
 
 /* ================= updates ================= */
-const APP_VERSION = '2026-11-27.9';
+const APP_VERSION = '2026-11-27.10';
 async function checkUpdate(){
   if (R) return;
   try {
